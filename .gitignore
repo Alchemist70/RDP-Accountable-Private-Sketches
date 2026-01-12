@@ -132,6 +132,7 @@ venv/
 *scratch.md
 *_OLD.md
 *_backup.md
+*.md
 
 # Python
 __pycache__/
@@ -226,4 +227,4 @@ credentials.json
 # Python packaging
 pip-wheel-metadata/
 
-*.md
+
