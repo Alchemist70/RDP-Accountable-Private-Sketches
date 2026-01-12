@@ -132,7 +132,7 @@ venv/
 *scratch.md
 *_OLD.md
 *_backup.md
-*.md
+*.txt
 
 # Python
 __pycache__/
