@@ -1,0 +1,1233 @@
+RDP-Accountable Private Sketches: Certified Detection for
+Byzantine-Resilient Federated Learning
+
+Abdulhadi Abbas Akanni
+GITAM University
+Bengaluru, India
+
+aabdulh
+
+Sitam.in
+
+Abstract
+for
+
+cus,
+
+certified links between sketch dimension, local-noise parameters,
+antine updates, PrivateSketch coum-
+
+client sketches with local Gaussian
+
+nd power against Fy,
+
+bines per-layer low-dime
+
+rantin
+
+perturbation {recorded 1d an adaptive
+
+detection under a global EDP co
+
+straint.
+
+budget ta max-
+
+iis
+
+ermal sensitivity
+le sketches un-
+
+Char main technical contributions are
+
+|
+
+bene
+
+-inversion thecrems
+detection probabili-
+ban ‘end: to- end ROF accounting
+jtable final
+
+We)
+
+der local medel wpds
+
+awe
+
+gets,
+
+Empirical evaluation on MNIST, Bashion-lv NIST, and CIFAR-
+10 shows that PrivateSketch achiev
+privacy trade-offs compared to standard rotust 2
+cutted mean, Krum) and ba
+; federated non-IDt benchmarks
+adient, backdoor, and celluding By
+nrehensive
+
+superiay Jetectioncvereee
+rerators {me-
+
+ods (DP -Fed
+Ve evaluate under
+
+eline DF meth
+
+ntine at-
+sand EDF
+
+per-rMn privacy trace
+
+endent ver
+
+or indep
+
+CCS Concepts
+
+« Computing methodologies — Machine learning; « Security
+and privacy — Privacy-preserving protocols
+Computer systems organization —
+
+Keywords
+
+arming,
+
+Differential PF
+iting Resilience, RL
+
+ACM, Reference Format:
+-Acocuntable
+Federated
+
+Co-Author Name
+
+, Country
+nstitution edu
+
+Learning. In
+
+VAREL TO
+
+1. Introduction
+
+Federated learning (FL) enables ellaborative machine learning
+
+veg distributed clients wi w data, However,
+
+from model wp-
+
+ver ar € clients
+
+threweh cral
+
+privac
+
+al privacy, se-
+
+(median, trimmed mean, Krum
+
+: erential privacy adds noise to meet
+
+uarantees, Few practical systems cambine
+
+untable wey.
+
+but provide no priva
+both in a primeipled,
+
+5} per-me
+a fal andital
+ri as three ke
+
+This de
+
+communication [
+
+© reduces
+
+near in f
+
+Py becomes lineax ink < Dy em, per-
+
+client mc) ation allows targeting privac y budget ta where it
+jon. Third, RDP composi
+id practitio
+
+privacy claims
+
+ui is transparent and
+
+most impacts detec
+
+auditable
+
+&
+
+‘review ect per-mechanism
+
+mers can in ya
+
+uvds and vex
+
+dependently.
+
+1.1 Main Contributions
+
+We enumerate five specific, crisp contributions:
+
+1 pexturration,
+anid suditable
+
+Formal sensitiv ity bounds: Tight % sen
+
+random-prejection sketches (Lemma
+
+constructions {Lemma 5 mabling
+tien.
+
+i Certified detection theorems: Chernoff-style — tail-
+
+3) that map sketch dimens
+
+inversion bownds {The
+
+
+Private 35, TAD, THIt
+
+rictise e, and B
+detection guarantee
+id) APS+ allocator: A
+distri
+pro ry i
+
+itude to probabilistic
+
+ow mecdiantMAD detectors.
+
+(TFR/FFR}
+convex-rel: cation b ed optimizer ‘hat
+
+ts, ium-
+
+butes per-client neds
+
+‘ detection power subject to pr PAC s. We
+
+5
+
+provi three va arjants ‘constrained val-search),
+
+of daprevec detectionsvenas
+tn standard 2
+
+1.2 Paper Organization
+
+The remainder of this paper is organized as fallen
+
+2 presents the threat model and attacker assump-
+
+C7
+
+and defines notation.
+ist detec-
+
+13 formalizes the problem setup
+
+background on sket
+
+wa 4 poreey
+tion, and RDF.
+
+ching, rob
+
+wsitivity analysis, RDP
+
+« Section & repo wts comprehensive experiments and results.
+
+« ur werk within related literature.
+
+«: limitations ane future directions.
+
+@ Ss
+
+a, additional derivatic
+
+and implementation details,
+
+amal pre
+
+2 Threat Model and Assumptions
+2.1 System Model
+
+onsider a standard synchronous fed
+clients ever T rounds. In
+
+transi
+form the ‘plobal w ma de el for the: next round.
+
+Attacker Model
+
+ume an honest-but-curic
+
+sion &, noise é | 47 berhite-beax
+threati. The not lonaw the random seeds or private r
+demu t clients.
+
+Attacker capabilities: C
+
+ayt-
+
+with
+bsery
+
+the defense based on cy
+
+els. They cannot
+phic primitives {we assume secure charmels
+
+licable, secure
+
+and, when app repat
+Per-round constraints: We assume an attacker can cam-
+promise at mest f clients per reund, but the identity and
+
+nid,
+
+number can vary pes
+
+Ihad Abbas Akan ane
+
+2.3 Attack Types
+
+BT.
+
+We evaluate the following :
+
+e Label-flip: Adver lg in their
+
+andard SCD, corrupting the mo
+misclassification.
+
+« Scaled-gradient: Adverse
+
+eo, “Ii te amplify their influenc
+
+ra)
+
+tack families:
+
+r al
+
+saries flip labe
+and compute s
+
+upd ate.
+« Backdoor: Adv
+terns! in their training data te cause ta
+
+vies insert triggers (small patches, pat-
+jons while preserving global accurs
+
+¢ Colluding: Multiple
+
+24 Defender Goals
+
+The defender |
+
+| Detection: Identity
+rate (TPR) and low false cositive rate 2
+Privacy: Satisty a target EDP budget f
+
+entire run,
+
+3 Formal Problem Setup
+3.1 Notation and Definitions |
+
+: an upper 3 bound cut
+
+Re:
+
+tien cr CountSke
+«a > fis the
+
+(determined
+
+cea
+=
+fa
++
+>
+=
+A
+a]
+
+A randeom matrix
+
+iid. entrie } maps updates te
+
+T Hoe) ; “Sketche preserve distance
+
+c
+
+Sup to concentration
+
+som-Lindenstrause lemma,
+
+untSketch us
+and sign Tunctien
+
+nt independent hash functions
+2D) — {-1,41} to form
+
+bucket 6 ¢ [k]. We concatenate sketches: s( = Js,...,
+
+3.3 Server-Side Detection
+
+an
+4)
+
+Upon receiving noisy sketches
+
+es a
+
+outliers:
+
+detector to identify
+
+
+ROF-Accountable Private Sketches: Certified Detection for
+
+Single-coordina
+
+24 26
+L2 noimn of
+
+Figure 1: Single-coordinate sensitivity illustration
+
+(1) Compute cooredinate-wise median: m, = median;
+
+linate c € [&],
+
+rinate-wise MALT |
+
+deviati
+
+for
+
+WADI. + €)
+
+(4) Threshold: mark
+
+for
+
+santine if max
+
+{tuned vi
+
+client
+dd 7
+
+me threshe
+
+detection power,
+
+4 Background and Preliminaries
+
+4.1 Sketching Primitives and Sensitivity
+For any update Ax € Rw
+with k< D,
+
+with iad.
+
+Random Prajection, For random matrix F
+) fees : Jehnson-
+
+entries, the sketch s = FTAx sat
+bounds. Tn in particular, each coordi
+
+Thu
+
+Li
+
+Ia
+
+4.32 CowvntSketeh. For CountSketch with m oes and d
+
+@ oun ded i in
+
+& oth ash and
+
+ation
+
+4.2 Robust Detection: Median and MAD
+
+Median and MAL) are c
+
+cal robust statistic samples
+
+median} = X45, for average of twe middle values if s even}
+
+— median Gc}
+
+MAD} = median (
+
+ine-Resilient Fecerated Learning
+
+[cme | semen | {tres | Asgaregation) | {te | {tition ]
+
+Figure 2: PrivateSketch pipeline overview.
+
+}, beth median and MAD con-
+ibe
+these: identify c
+
+ant data
+
+ons, The ro
+
+ust coordinate-wise
+
+wd
+Heantly from the median (in
+
+centrate around their ectati
+
+a where
+
+detection we employ combines inate
+
+achient’s noisy sl
+unite ef WATS,
+
+4.3 Renyi Differential Privacy (RDP)
+
+EDP of order ¢ > 1 is detin
+
+ed tor a random
+
+For a Gaussian mechanism adding !
+fa-sensitivity 4:
+
+ELE
+aitien
+
+&)-RDF indepe
+
+5 Method: PrivateSketch and APS+
+5.1 Overview
+
+ra-dimens
+Local Gaussian perturbation: Fer-client noise is added
+
+before transmission.
+Server-side detection: Naisy s
+
+straints.
+{5} RDP accounting:
+ded and comp
+
+5.2 Sensitivity Analysis for Sketches
+
+Lemma 5.1 {B.
+
+
+Figure 3: RDP accounting pipeline overview.
+
+where w
+Lindenstrau
+
+vas trom swh-
+
+Lamia 5
+
+brate the Ganssian no
+sensitivity is 4, adding
+
+corresponding te
+
+‘sample_rate,
+ampling S probed
+
+transparent, andital
+
+tility, noise scale, and number ot
+tle
+
+ad
+a
+
+rounds and clients,
+x in a chose
+
+ywith anplification-by-subsampling correc-
+
+wlhad
+
+convert the
+
+Efina, = Wii
+
+a
+
+MAD
+
+dominates the meise variance,
+
+ads, if
+
+Prima — LInverting the Chernod? bound for & coer-
+dinates and failure probability Asctec- yields the claimed result. Full
+proof? in Appendix A. im
+
+5.5 APS+ Allocator
+
+B49 Optiovzation Prohlem, Given client sensitivities Ay,..., iy,
+
+min
+
+wh vere w; are client portance
+s the per-crder EDP budge
+
+‘quenitial Least-Squar
+
+e Warn start from a scalar allocation fall «
+
+« Me ation of intexm RDP eva re-
+dundant composition.
+« Fea s after solving ta ensure constraints are
+
+aatished.
+
+
+ection far tine-Resi lient Fed
+
+Figure 4: APS+ allocator flow.
+
+ion aberve directly.
+istraints to
+
+small wv fex austive but nresice).
+
+5.6 Integration: PrivateSketch Algorithm
+
+Algorithm. 1 PrivateSketch: Client and Server
+
+Client i:
+fou rowned t
+
+=1taT da
+
+val, update:
+
+Aa ids sieds
+
+Send: 2°) to server
+
+end for
+
+Server:
+
+for round t = 1 ta T do
+Receive sketches:
+
+Compute median:
+
+eee HMA.
+
++e}
+iff ) s T then
+Mark chent i as Bysantine
+else
+Mark client {as hor
+end if
+end for
+
+clients
+
+ample_rate.
+Update
+end for
+
+Privacy Accounting {post-ru
+Compose RDP:
+
+Convert to
+
+Report: fe, 3) budget used for the run
+
+6 Experiments
+
+6.1 Experimental Setup
+
+rated Learning
+
+Dataset
+
+Table 1: Datasets used in experiments.
+
+# samples Partition
+
+}ANIST
+
+oa-PANIST
+CIRA WRAL
+
+Non-IDt label-shard
+Non-lIDt label-shard
+Nen-JID Liirichlet
+
+Table 2: Baseline methods for comparison.
+Method Leseription
+FedAave Standard federated ay ing jo rebustnesst
+Pedian |
+Trimmed Mean
+Krum
+FARPA Sketch- has
+
+DP- Fed Avg z
+
+FrivateSketch tA
+
+FedAve with DF-
+
+Ti per client
+Centralized DP-SGD fweper keund on client-side DP)
+
+Proposed method
+
+APS+4
+
+Table 3: Byzantine attack parameters.
+
+LDeseription
+
+Flip client labels
+
+Insert trigger patches
+
+=
+
+Coordinate att
+
+Table 4: Training hyperparameters for all methods.
+
+Value
+
+1ao
+
+Number of clients
+
+d
+
+Chents per re
+
+Learning rate
+Tetal rounds
+th dimension
+
+antine chents £
+jent clipping nerm
+
+
+
+Privat 25, TED, TEI
+
+Figure 5: Detection ROC (backdoer attack, FARPA trust
+sweep). PrivateSketch achieves 0.85 AUC vs. 0.78 for FARPA
+
+and 0.70 for Krum.
+Privacy-Utility Trade-off Analysis
+@ ars
+DP-SGD
+50000 @ SecureAgg
+@ Fixed-e
+40000
+2
+8
+a
+> 30000
+$
+<
+3
+8
+E
+E 20000
+2
+10000
+Lx 3]
+0 feo +
+0.0 0.2 08 1.0
+
+Utility (Gradient Similarity)
+
+Figure 6: Privacy-utility trade-offs: accuracy ws. ¢
+107"). PrivateSketch maintains higher accuracy across pri-
+vacy budgets.
+
+6.2 Results: Detection Performance
+
+Figure 5 shew ws. FPR) for detection under
+
+backdoor attacks. PrivateSketch achieves AU C = 1.85 compared
+te baselines iFedAvg 0.50, Trimmed Mean ta 1, FARPA
+
+jon is due te per-: client 1 neise allocation
+
+(APS) ta tau santine magnitude,
+
+6.3 Results: Privacy-Utility Trade-off
+
+Figure 6 plats model accuracy versus privacy budge
+
+low-sensitivity updates.
+
+6.4 Results: Convergence and Utility
+
+(accuracy vs. rounds) for multiple
+
+artine client fractions {
+
+tect
+
+on fleewer FFE for : tion. We
+evaluate k {3 , 128, 256} and find dims inis ishing returns beyoud
+
+Fl
+
+report detection A A
+vyeantine, AUC dre
+
+6.6 Summary Results Table
+6.7 RDP Smoke-Grid
+
+Per-run EDP metadata is 26
+cal configuration k = 128, 7/3
+
+F Related Work
+
+7.1 Differential Privacy in Federated Learning
+
+Federated learning with diterential y privacy
+studied. McMahan et al. (13) mirod
+DP-S! e
+
+d composition, Our work differs
+a at the sketch level,
+
+by integ utine dete
+
+ating privacy
+rather than at the grad
+
+7.2 RDP Accounting and Composition
+Mironev’s EDF fr ormalism | 14] provides ti
+
+, kiran [2]. Bulyan eh and
+ke RFA [is], FLAME [15], and
+porate client diversity or trust scares, Qur approach complements
+sand per-client noise
+
+trimmed mean |
+
+recent method
+
+7.5 Detection and Anomaly in Federated
+Settings
+
+Same works study detection of Bys
+
+“3 certified detection guarantees
+
+antine chents without explicit
+
+privacy. Cur work uniquely combi
+with formal RDF ac
+
+cunt.
+
+
+REDP-Accountakle Private Svetches: Certified Detection for Byzantine-Resilient Federated Learning
+
+Test Accuracy
+
+0.147
+
+0.12 4
+
+0.104
+
+0.08 +
+
+Grid: sd=128, ns=2, zt=3.0
+
+=—@®= apra_basic
+—@®- apra_weighted
+0.16 7 —@ median
+=—@- trimmed
+T T T T T T T T
+2.5 5.0 7.5 10.0 12.5 15.0 17.5 20.0
+Round
+
+Privatetroc 725, TAD, TRI
+
+Figure 7: Training convergence across attack scenarios. PrivateSketch maintains stable convergence and utility even under 20%
+
+Byzantine client fraction.
+
+10
+
+epsilon
+
+Figure 8: RDP smoke-grid across parameter sweeps.
+
+Figure & APS+ per-client noise allocations across parameter
+
+grid.
+
+Table 5: Summary results
+
+: detection AUC, medel accuracy, and privacy budget for representative configurations.
+
+Tethod. Attack Letection AUC Camp. tms/round)
+FedAvg None - N/A, i
+Iedian Label-flip 1 N/A.
+Krum Label-flip N/A
+DF-FedAve Label-flip - 15
+FrivateSketch  Label-flip i 1.5
+
+Per-run epsilon values (merged smoke-grid) eorule Bun Mech senvalng a x stens
+furad 0G). va 109
+fuad O.GE 8 209
+fuss 109
+rus, 5)
+£WIS j09
+rut 209
+eu37 109
+
+ruse vy OG
+
+budgets and composed privacy.
+
+8 Limitations and Discussion
+
+8.1 Limitations
+
+Per-client sigma allocations
+
+an
+Iki<
+
+dimensional models (
+
+may 3
+demonstrated on vision benchmarks.
+
+Su
+
+trade-offs explicit but dees net eliminate them,
+| Scalability to large dimensions: For very high-
+g., large language models
+wire careful tuning, Our methed is primarily
+
+Table 6: Ageregated RDP smoke-grid: per-configuration RDP
+
+{1} Sketch dimension trade-off: Smaller sketches reduce com-
+
+vuurtication but degrade detection power. Very small sketches
+42) may fail against subtle attacks
+Privacy-utility trade-off: Adding nais
+
+
+Private?
+
+Byz=0.0
+— apra
+0.25 4 locum
+>
+is
+© 0.204
+5
+3
+<
+0.15 4
+0.10 - T T T T T T T T T
+10 #15 20 25 30 35 40 45 50
+Round
+Byz=0.25
+0.304
+— apra
+—— krum
+0.25 4
+>
+3
+$ 0.204
+50.
+3
+<
+0.154
+0.10 4 T T T T T T T T T
+10 #15 06200-2550 38.085 (iSO
+Round
+Byz=0.5
+0.250 | are
+0.225 + Krum
+> 0.200 4
+3
+£
+2 0.175 4 =
+=z
+0.150 4
+0.125
+
+LO 15 2.0 2.5 3.0 3.5 4.0 4.5 5.0
+Round
+
+fa) Krum poisoning curves
+
+i
+
+Figure 10: Krum poisoning analy
+
+| Secure aggregation integration: While PrivateSketch is
+ible with secure aggreg
+pet.
+(5) Byzantine fraction. assumptions: Wi
+
+ration, production deployment
+
+requires careful
+
+ic engineering.
+
+ume attackers are
+ceeding this bound
+
+may succeed,
+
+&.2 Discussion
+
+Ptivacy or robustnes
+d detection and EL
+m about detectic
+ble: p
+
+“f oth through ‘dketoh-
+
+acocumnting, we en
+rivacy trade-offs explicitly, The APS
+
+I-
+
+tive weights, use
+
+aware Variants, or int
+
+9 Conclusion
+
+intreduced Privates
+based detection in B
+
+—
+ie]
+
+YEA)
+
+mal RDF accounting. Chur main scontba utions gare
+ity bounds for sketching wp )
+
+Final accuracy vs Byzantine fraction
+
+0.30 4
+
+—@ APRA (CAPRA)
+—® Krum
+
+0.28 4
+
+0.26 4
+
+0.244
+
+0.22 54
+
+0.20 4
+
+Final accuracy (mean + std)
+
+0.18 4
+
+0.16 4
+
+0.14 4
+
+r t
+0.0 0.1 0.2 0.3 0.4 05
+Byzantine fraction
+
+(b) Kirwm, poisoning summary
+
+s: detailed curves and summary metrics.
+
+reriMmeni-
+
+and (iv) coomprehensive
+
+ing improved detection-versu.
+r methods,
+
+The empirical results show that FrivateSketch achieves 0.8
+tection AUC at ¢ = 1.5 on MNIST under backdoor attacks, out-
+performing pricr s based methods (FA
+standard retmat “een
+pendent verifica
+
+compared te p
+
+tio.
+
+9.1 Future Work
+ier analysis for CountSketch-based detection under
+ttacks,
+soare bud
+--robustnes
+
+allocation variants ensuring equitable
+
+or all client
+ion with secure
+
+Integra
+in. crass-silo ‘feployment wits,
+Extension to mon-conve
+ment learning’
+
++, federated reinforce-
+
+References
+
+
+
+in cata streams
+
+A patcper ct
+ALONE,
+
+wn
+
+ric Fouite
+
+Found
+
+IEEE 7
+
+aE te.
+
+Vail, ane
+Toraards
+
+A Appendix: Proofs and Additional Analysis
+A1 Proof of Lemma 5.1: Random Projection
+
+on with full comces-
+
+A2 Proof of Lemma 5.2; CountSketch
+
+= Vg fx'[i]) (6)
+
+Fray G)
+
+ware
+
+fii
+
+using & norm |
+
+nm fc
+
+With concentratics
+
+ounds for CountSketch),
+
+AS = Proof of Theorem 3.3
+
+ntine client have sketch c ate deviation As from
+
+atine coordinate is:
+
+Let a B
+the ree
+
+st median. The noisy By
+
+Fy
+
+vay
+,
+
+The mumera ximatel
+
+has mean appr
+
+Iv. % coordinates funion
+bow
+
+Fr(e :
+
+AA RDP Composition Details
+For Gaussian mechanisms with sensitivities 44,
+f,..., Fy, applied over T rounds, the composed RDF at orde
+
+mpling
+and orde:
+
+
+
+dor,
+
+Private
+
+y= min ele,
+a>
+
+AS APS+ Solwer Details
+
+minimizes:
+
+nistraints
+
+composition at eac
+
+A6 Implementation and Reproducibility
+
+ie generation)
+
+f
+4
+
+Author Me
+
+s Akan anc
+
+Abeulhad
+
+ROP
+
+COOUNTINE. cemposition and
+
+Iain experiment rummer.
+
+® scriotssrur_apra_mnist. ty
+« scriots,take_pacer_figures_gpt.pe: Figure genera-
+
+(sample_
+
+RD
+
+rourads":
+
+clients": 16
+ntine": 1&,
+
+sllon_tarset”:
+
+ta: le-5,

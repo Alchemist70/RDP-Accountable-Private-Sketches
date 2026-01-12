@@ -1,0 +1,15 @@
+name: apra-capra
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy=1.25
+  - scipy
+  - pytest
+  - tensorflow=2.14
+  - scikit-image
+  - pip
+  - pip:
+    - matplotlib
+    - pandas

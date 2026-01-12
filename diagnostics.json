@@ -1,0 +1,12 @@
+{
+  "python_version": "3.13.5",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "cwd": "C:\\Users\\rravi\\FL_Improvements_Research",
+  "cpu_count_logical": 12,
+  "cpu_count_physical": 10,
+  "memory_total_GB": 7.7,
+  "disk_free_GB": 241.68,
+  "time": "2025-11-21T00:21:42.353697Z",
+  "tensorflow_version": "2.20.0",
+  "gpus": []
+}

@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 6 * * 0'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Prepare pip cache and wheelhouse
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ./.wheelhouse
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}-${{ matrix.python-version || 'py' }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies (use wheelhouse if available)
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          mkdir -p ./.wheelhouse || true
+          # download wheels for heavy packages into wheelhouse (best-effort)
+          pip download -r requirements.txt -d ./.wheelhouse || true
+          pip download tensorflow==2.14.0 tensorflow-privacy -d ./.wheelhouse || true
+          # install from wheelhouse first, fall back to PyPI if needed
+          pip install --no-index --find-links ./.wheelhouse -r requirements.txt || pip install -r requirements.txt || true
+          pip install --no-index --find-links ./.wheelhouse tensorflow==2.14.0 tensorflow-privacy || pip install tensorflow==2.14.0 tensorflow-privacy || true
+      - name: Run tests
+        run: |
+          pytest -q
+
+  smoke-grid:
+    name: Smoke-grid (optional)
+    runs-on: ubuntu-latest
+    if: ${{ secrets.RUN_SMOKEGRID == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          python-version: 3.10
+          auto-activate-base: false
+      - name: Create tfpriv environment (best-effort)
+        shell: bash
+        run: |
+          conda create -y -n tfpriv python=3.10
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate tfpriv
+          python -m pip install --upgrade pip
+          pip install dp-accounting || pip install dp_accounting || true
+          pip install tensorflow_privacy || true
+      - name: Run smoke-grid
+        shell: bash
+        run: |
+          source $(conda info --base)/etc/profile.d/conda.sh
+          conda activate tfpriv
+          python scripts/run_rdp_smoke_grid.py
+      - name: Upload smoke-grid artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rdp-smokegrid-outputs
+          path: rdp_smoke_outputs/

@@ -1,0 +1,1994 @@
+RDP-Accountable Private Sketches: Certified Detection for
+Byzantine-Resilient Federated Learning
+Abdulhadi Abbas Akanni
+
+Co-Author Name
+
+GITAM University
+Bengaluru, India
+aabdulha@gitam.in
+
+Co-Author Institution
+City, Country
+coauthor@institution.edu
+
+Abstract
+PrivateSketch is presented as an RDP-accountable approach for
+sketch-based detection in federated learning that provides rigorous,
+certified links between sketch dimension, local-noise parameters,
+and detection power against Byzantine updates. PrivateSketch combines per-layer low-dimensional client sketches with local Gaussian
+perturbation (recorded for Rényi DP accounting) and an adaptive
+sensitivity allocator (APS+) that distributes privacy budget to maximize detection under a global RDP constraint.
+The main technical contributions are: (i) tight, formal sensitivity
+bounds for random-projection and CountSketch-style sketches under local model updates; (ii) Chernoff-style tail-inversion theorems
+mapping sketch/noise parameters to certified detection probabilities for median+MAD detectors; (iii) an end-to-end RDP accounting
+pipeline that composes per-mechanism tuples into auditable final
+(𝜀, 𝛿) reports; and (iv) APS+, a practical optimizer balancing perclient noise allocation under global privacy budgets.
+Empirical evaluation on MNIST, Fashion-MNIST, and CIFAR10 shows that PrivateSketch achieves superior detection-versusprivacy trade-offs compared to standard robust aggregators (median, trimmed mean, Krum) and baseline DP methods (DP-FedAvg,
+DP-SGD) across federated non-IID benchmarks. Evaluation is performed under label-flip, scaled-gradient, backdoor, and colluding
+Byzantine attacks; comprehensive per-run privacy traces and RDP
+smoke-grids are provided for independent verification.
+
+CCS Concepts
+• Security and privacy → Differential privacy; • Computing
+methodologies → Distributed computing methodologies; • Machine learning → Federated learning.
+
+Keywords
+Federated Learning, Differential Privacy, Robust Aggregation,
+Sketching, Byzantine Resilience, RDP Accounting
+ACM Reference Format:
+Abdulhadi Abbas Akanni and Co-Author Name. 2025. RDP-Accountable
+Private Sketches: Certified Detection for Byzantine-Resilient Federated
+Permission to make digital or hard copies of all or part of this work for personal or
+classroom use is granted without fee provided that copies are not made or distributed
+for profit or commercial advantage and that copies bear this notice and the full citation
+on the first page. Copyrights for components of this work owned by others than the
+author(s) must be honored. Abstracting with credit is permitted. To copy otherwise, or
+republish, to post on servers or to redistribute to lists, requires prior specific permission
+and/or a fee. Request permissions from permissions@acm.org.
+Conference’17, Washington, DC, USA
+© 2025 Copyright held by the owner/author(s). Publication rights licensed to ACM.
+ACM ISBN 978-x-xxxx-xxxx-x/YYYY/MM
+https://doi.org/10.1145/nnnnnnn.nnnnnnn
+
+Learning. In . ACM, New York, NY, USA, 15 pages. https://doi.org/10.1145/
+nnnnnnn.nnnnnnn
+
+1
+
+Introduction
+
+Federated learning (FL) enables collaborative machine learning
+across distributed clients without centralizing raw data. However,
+FL faces three critical challenges: (i) privacy leakage from model updates exposed to the server or eavesdroppers, (ii) Byzantine clients
+that poison learning through crafted updates, and (iii) communication and computation costs that constrain practical deployment,
+especially in cross-device settings.
+Prior defenses typically address privacy (differential privacy, secure aggregation) or robustness (median, trimmed mean, Krum
+aggregators) in isolation. Differential privacy adds noise to meet
+formal (𝜀, 𝛿) guarantees but often degrades model utility significantly. Robust aggregation methods can tolerate Byzantine clients
+but provide no privacy guarantees. Few practical systems combine
+both in a principled, accountable way.
+PrivateSketch is introduced to a unified pipeline bridging sketchbased robust detection with formal Rényi Differential Privacy (RDP)
+accounting. PrivateSketch operates as follows: (1) each client computes a low-dimensional sketch of its update; (2) clients add independent Gaussian noise to sketches before transmission; (3) the
+server applies median+MAD detection on noisy sketches to identify
+Byzantine clients; (4) an adaptive allocator (APS+) distributes perclient noise budgets to maximize detection power under a global
+RDP constraint; (5) per-mechanism privacy tuples are recorded and
+composed into a final auditable (𝜀, 𝛿) report.
+This design has three key advantages. First, sketching reduces
+communication (linear in 𝐷 becomes linear in 𝑘 ≪ 𝐷). Second, perclient noise allocation allows targeting privacy budget to where it
+most impacts detection. Third, RDP composition is transparent and
+auditable: reviewers and practitioners can inspect per-mechanism
+records and verify privacy claims independently.
+
+1.1
+
+Main Contributions
+
+Five specific, crisp contributions are enumerated:
+(1) PrivateSketch pipeline: A practical, end-to-end system
+combining per-client sketches, local Gaussian perturbation,
+server-side robust detection (median+MAD), and auditable
+RDP accounting.
+(2) Formal sensitivity bounds: Tight ℓ2 sensitivity analysis for
+random-projection sketches (Lemma A.1) and CountSketch
+constructions (Lemma 5.2), enabling precise noise calibration.
+(3) Certified detection theorems: Chernoff-style tailinversion bounds (Theorem 5.3) that map sketch dimension,
+
+Conference’17, July 2017, Washington, DC, USA
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+noise scale, and Byzantine magnitude to probabilistic
+detection guarantees (TPR/FPR) for median+MAD detectors.
+(4) APS+ allocator: A convex-relaxation-based optimizer that
+distributes per-client noise subject to global RDP budgets,
+improving detection power subject to privacy constraints.
+Three variants are provided (constrained, convex, globalsearch).
+(5) Empirical validation: Comprehensive experiments on
+MNIST, Fashion-MNIST, CIFAR-10 under label-flip, scaledgradient, backdoor, and colluding attacks. Demonstration
+of improved detection-versus-privacy trade-offs compared
+to standard aggregators (median, Krum, FARPA) and DP
+baselines (DP-FedAvg, DP-SGD).
+
+1.2
+
+Paper Organization
+
+The remainder of this paper is organized as follows:
+• Section 2 presents the threat model and attacker assumptions.
+• Section 3 formalizes the problem setup and defines notation.
+• Section 4 provides background on sketching, robust detection, and RDP.
+• Section 5 describes PrivateSketch, sensitivity analysis, RDP
+accounting, and APS+.
+• Section 6 reports comprehensive experiments and results.
+• Section 7 situates this work within related literature.
+• Section 8 discusses limitations and future directions.
+• Section 9 concludes.
+• Appendix A provides formal proofs, additional derivations,
+and implementation details.
+
+2 Threat Model and Assumptions
+2.1 System Model
+A standard synchronous federated learning setting is considered: a
+server coordinates 𝑛 clients over 𝑇 rounds. In each round, the server
+selects a subset of clients, each performs local SGD for 𝑒 epochs, and
+transmits an update to the server. The server aggregates updates to
+form the global model for the next round.
+
+2.2
+
+Attacker Model
+
+An honest-but-curious server is assumed and the focus is on Byzantine client attacks. Up to 𝑓 ≤ 𝑛 clients (a fraction 𝑓 /𝑛) may behave
+adversarially:
+• Attacker knowledge: Adversaries know the sketch dimension 𝑘, detection threshold 𝑇 , and the detection algorithm
+(median+MAD). They observe the global model after each
+round and can infer overall system parameters. Crucially:
+Adversaries do not have access to per-client noise scales 𝜎𝑖
+allocated by APS+, as these are computed privately on the
+server side and not transmitted to clients. They cannot predict which client will be sampled in future rounds. They do
+not know the random seeds or private randomness (sketch
+hash functions, noise generation) of honest clients.
+• Attacker adaptive capabilities: Compromised clients can
+craft arbitrary updates, collude with other adversaries, and
+adapt to the defense based on observed global models and
+
+detected Byzantine clients from previous rounds. However,
+the adaptive attacker is not aware of the per-client noise
+allocation (𝜎𝑖 schedule), which is recomputed each round by
+the server. This limits their ability to precisely predict detection boundaries. They cannot break cryptographic primitives
+(we assume secure channels and, when applicable, secure
+aggregation).
+• Per-round constraints: It is assumed an attacker can compromise at most 𝑓 clients per round, but the identity and
+number can vary per round. The server detects and removes
+flagged Byzantine clients at the end of each round; attackers
+cannot predict future detection thresholds since APS+ recomputes 𝜎𝑖 values adaptively based on the current privacy
+budget and detection objectives.
+
+2.3
+
+Attack Types
+
+The following attack families are evaluated:
+• Label-flip: Adversaries flip labels in their local training set
+and compute standard SGD, corrupting the model toward
+misclassification.
+• Scaled-gradient: Adversaries scale their gradients by a factor (e.g., ×10) to amplify their influence on the aggregated
+update.
+• Backdoor: Adversaries insert triggers (small patches, patterns) in their training data to cause targeted misclassifications while preserving global accuracy.
+• Colluding: Multiple adversaries coordinate to craft updates
+that are harder to detect individually (e.g., averaging attacks).
+
+2.4
+
+Defender Goals
+
+The defender (server) aims to:
+(1) Detection: Identify Byzantine clients with high true positive
+rate (TPR) and low false positive rate (FPR).
+(2) Privacy: Satisfy a target RDP budget (𝜀 target, 𝛿 target ) for the
+entire run.
+(3) Utility: Maintain model accuracy on honest clients’ data
+distribution despite added noise and Byzantine attacks.
+
+3 Formal Problem Setup
+3.1 Notation and Definitions
+• D𝑖 denotes the dataset of client 𝑖; for Byzantine clients, D𝑖
+is corrupted or adversarially chosen.
+• Δ𝑥 (𝑖 ) ∈ R𝐷 is the local update (gradient) computed by client
+𝑖 over 𝑒 local epochs.
+• 𝑆 is an upper bound on ℓ2 -norm of local updates: ∥Δ𝑥 (𝑖 ) ∥ 2 ≤
+𝑆 (enforced via gradient clipping if needed).
+• 𝑠 (𝑖 ) ∈ R𝑘 is the sketch of Δ𝑥 (𝑖 ) , obtained via random projection or CountSketch.
+• 𝜎𝑖 > 0 is the Gaussian noise scale applied to sketch 𝑠 (𝑖 )
+(determined by APS+).
+• 𝑠˜ (𝑖 ) = 𝑠 (𝑖 ) + 𝜉 (𝑖 ) is the noisy sketch transmitted to the server,
+where 𝜉 (𝑖 ) ∼ N (0, 𝜎𝑖2 𝐼𝑘 ).
+
+3.2
+
+Sketch Constructions
+
+Two low-dimensional sketch mappings are considered:
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+Random Projection (RP).. A random matrix 𝑃 ∈ R𝐷 ×𝑘 with
+i.i.d. entries 𝑃𝑖 𝑗 ∼ N (0, 1/𝑘) maps updates to sketches: 𝑠 (𝑖 ) =
+𝑃 ⊤ Δ𝑥 (𝑖 ) ∈ R𝑘 . Sketches preserve distances up to concentration
+bounds (Johnson–Lindenstrauss lemma).
+
+Conference’17, July 2017, Washington, DC, USA
+Single-coordinate sensitivity distribution
+
+50
+
+density
+
+40
+30
+20
+10
+
+CountSketch. CountSketch uses 𝑚 independent hash functions
+ℎ 𝑗 : [𝐷] → [𝑘] and sign functions sgn 𝑗 : [𝐷] → {−1, +1} to form
+Í
+𝑚 sketches. The 𝑗-th sketch is 𝑠 𝑗 [𝑏] = 𝑖:ℎ 𝑗 (𝑖 )=𝑏 sgn 𝑗 (𝑖)·Δ𝑥 (𝑖 ) [𝑖] for
+bucket 𝑏 ∈ [𝑘]. Sketches are concatenated as 𝑠 (𝑖 ) = [𝑠 1, . . . , 𝑠𝑚 ] ∈
+R𝑚𝑘 .
+
+3.3
+
+Server-Side Detection
+
+Upon receiving noisy sketches 𝑠˜ (1) , . . . , 𝑠˜ (𝑛) , the server applies a
+robust detector to identify outliers.
+Algorithm 1 Server-Side Detection via Median and MAD
+Require: noisy sketches {𝑠˜𝑐(𝑖 ) }𝑛𝑖=1 , MAD regularization 𝜖, detection
+threshold 𝑇
+Ensure: Byzantine client set B and aggregated update Δ𝜃¯
+1: for each coordinate 𝑐 ∈ [𝑘] do
+2:
+Compute median: 𝑚𝑐 ← median𝑖 (𝑠˜𝑐(𝑖 ) )
+3:
+Compute MAD: MAD𝑐 ← median𝑖 (|𝑠˜𝑐(𝑖 ) − 𝑚𝑐 |)
+4: end for
+5: Initialize Byzantine set B ← ∅
+6: for each client 𝑖 ∈ [𝑛] do
+𝑠˜
+
+7:
+
+(𝑖 )
+
+−𝑚
+
+𝑐
+𝑐
+Compute outlier score: score𝑖 ← max𝑐 MAD
+𝑐 +𝜖
+
+if score𝑖 > 𝑇 then
+B ← B ∪ {𝑖}
+10:
+end if
+11: end for
+Í
+1
+12: Aggregate honest clients: Δ𝜃¯ ← 𝑛− | B | 𝑖∉B Δ𝜃 (𝑖 )
+13: return B, Δ𝜃¯
+8:
+
+0
+
+2.4
+
+2.6
+2.8
+3.0
+L2 norm of sketch-difference
+
+3.2
+
+Figure 1: Single-coordinate sensitivity illustration.
+4.1.2 CountSketch. For CountSketch with 𝑚 repetitions and 𝑑
+buckets per repetition, the 𝑗-th sketch is formed by: 𝑠 𝑗 [𝑏] =
+Í
+The expected per-coordinate sensitivity is
+𝑖:ℎ 𝑗 (𝑖 )=𝑏 sgn 𝑗 (𝑖)Δ𝑥 [𝑖]. Í
+E[|𝑠 𝑗 [𝑏] −𝑠 ′𝑗 [𝑏]|] = E[| 𝑖 (sgn 𝑗 (𝑖)Δ𝑥 [𝑖] − sgn 𝑗 (𝑖)Δ𝑥 ′ [𝑖])|]. Under
+independence of hash and sign functions, this can be bounded in
+expectation (see Appendix A).
+
+4.2
+
+Robust Detection: Median and MAD
+
+Median and MAD are classical robust statistics. Given samples
+𝑥 1 , . . . , 𝑥𝑛 :
+median(𝑥) = 𝑥 (𝑛+1)/2
+
+(or average of two middle values if 𝑛 even)
+(1)
+
+MAD(𝑥) = median(|𝑥 − median(𝑥)|).
+
+(2)
+
+For Gaussian data 𝑥𝑖 ∼ N (𝜇, 𝜎 2 ), both median and MAD concentrate around their expectations. The robust coordinate-wise
+detection used combines these: coordinates are identified where
+a client’s noisy sketch deviates significantly from the median (in
+units of MAD).
+
+9:
+
+3.4
+
+Privacy Constraints
+
+The run must satisfy 𝐷𝛼 (M) ≤ 𝜀𝛼 for all 𝛼 > 1, where 𝜀𝛼 is converted to (𝜀, 𝛿) using the standard RDP-to-(𝜀, 𝛿) formula. APS+ allocates per-client noise 𝜎𝑖 to ensure this constraint while maximizing
+detection power.
+
+4 Background and Preliminaries
+4.1 Sketching Primitives and Sensitivity
+For any update Δ𝑥 ∈ R𝐷 with ∥Δ𝑥 ∥ 2 ≤ 𝑆, the sketches 𝑠 = 𝑃 ⊤ Δ𝑥
+(RP) or 𝑠 = CountSketch(Δ𝑥) (CS) are low-dimensional: 𝑠 ∈ R𝑘
+with 𝑘 ≪ 𝐷.
+4.1.1 Random Projection. For random matrix 𝑃 with i.i.d.
+N (0, 1/𝑘) entries, the sketch 𝑠 = 𝑃 ⊤ Δ𝑥 satisfies Johnson–
+Lindenstrauss bounds. In particular, each coordinate 𝑠 𝑗 = ⟨𝑝 𝑗 , Δ𝑥⟩
+is N (0, ∥Δ𝑥 ∥ 22 /𝑘). Thus:
+∥Δ𝑥 ∥ 22 𝑆 2
+E[𝑠 2𝑗 ] =
+≤ .
+
+𝑘
+𝑘
+By Gaussian concentration, Pr(|𝑠 𝑗 | > 𝑡) ≤ 2 exp(−𝑘𝑡 2 /(2𝑆 2 )).
+
+4.3
+
+Rényi Differential Privacy (RDP)
+
+RDP of order 𝛼 > 1 is defined for a randomized mechanism M as:
+
+ 
+𝑝 M (𝐷 ) (𝑦) 𝛼
+1
+′
+log E𝑦∼M (𝐷 ′ )
+,
+𝐷𝛼 (M (𝐷)∥M (𝐷 )) =
+𝛼 −1
+𝑝 M (𝐷 ′ ) (𝑦)
+where the expectation is over outputs of M (𝐷 ′ ) and 𝐷, 𝐷 ′ are
+neighboring datasets.
+For a Gaussian mechanism adding N (0, 𝜎 2 ) to a quantity with
+ℓ2 -sensitivity Δ:
+𝛼Δ2
+𝐷𝛼 (M) =
+.
+2𝜎 2
+RDP composes additively: if mechanism M1 satisfies (𝛼, 𝜀 1 )-RDP
+and M2 satisfies (𝛼, 𝜀 2 )-RDP independently, then their composition
+satisfies (𝛼, 𝜀 1 + 𝜀 2 )-RDP.
+Conversion to (𝜀, 𝛿)-DP (for any 𝛿 > 0):
+𝜀 (𝛿) = 𝐷𝛼 +
+
+log(1/𝛿)
+.
+𝛼 −1
+
+5 Method: PrivateSketch and APS+
+5.1 Overview
+PrivateSketch integrates five components:
+(1) Client-side sketching: Local updates are compressed to
+low-dimensional sketches.
+(2) Local Gaussian perturbation: Per-client noise is added
+before transmission.
+
+Conference’17, July 2017, Washington, DC, USA
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+ 3 H U  P H F K D Q L V P
+ W X S O H V   T    
+ V W H S V 
+ & O L H Q W  8 S G D W H
+
+ 6 N H W F K   3 ā [ 
+
+ / R F D O  * D X V V L D Q
+ 3 H U W X U E D W L R Q
+
+ 8 S O R D G   R U
+ 6 H F X U H
+ $ J J U H J D W L R Q 
+
+ 6 H U Y H U
+ $ J J U H J D W R U
+
+ $ 3 6   
+ D O O R F D W L R Q 
+
+Figure 3: RDP accounting pipeline overview.
+
+ 5 ' 3  $ F F W
+  S H U  P H F K 
+
+(3) Server-side detection: Noisy sketches are analyzed using
+median+MAD to identify Byzantine clients.
+(4) APS+ allocator: An optimizer distributes per-client noise
+budgets to maximize detection under global privacy constraints.
+(5) RDP accounting: Per-mechanism privacy tuples are
+recorded and composed to produce auditable (𝜀, 𝛿) reports.
+
+5.3
+
+RDP Accounting Pipeline
+
+5.3.1 Per-Mechanism Recording. Each round, for each client 𝑖, the
+tuple (sample_rate𝑖 , 𝜎𝑖 , num_steps𝑖 ) is recorded corresponding to
+the Poisson subsampling probability, noise scale, and number of
+gradient steps. This enables transparent, auditable accounting.
+5.3.2 Composition. Across all rounds and clients, RDP composes additively. For each order 𝛼 in a chosen grid (e.g., 𝛼 ∈
+{1.1, 1.5, 2.0, 5.0, 100}):
+𝐷𝛼total =
+
+Sensitivity Analysis for Sketches
+
+Lemma 5.1 (Random Projection Sensitivity). Let 𝑃 ∈ R𝐷 ×𝑘
+have i.i.d. entries 𝑃𝑖 𝑗 ∼ N (0, 1/𝑘). For any Δ𝑥, Δ𝑥 ′ with ∥Δ𝑥 −
+Δ𝑥 ′ ∥ 2 ≤ 𝑆, the difference in sketches satisfies:
+
+ & R P S R V H  D F U R V V
+ U R X Q G V  	  R U G H U V 
+ ) L Q D O       
+
+ ' H W H F W R U
+  P H G L D Q  0 $ ' 
+
+Figure 2: PrivateSketch pipeline overview.
+
+5.2
+
+ 3 H U  R U G H U  5 ' 3
+  F R P S X W H   B   I R U
+ H D F K   
+
+𝑇 ∑︁
+𝑛
+∑︁
+
+𝜀𝛼,𝑖,𝑡 ,
+
+𝑡 =1 𝑖=1
+𝛼 Δ2
+
+where 𝜀𝛼,𝑖,𝑡 = 2𝜎 2𝑖 (or with amplification-by-subsampling correc𝑖
+
+tions if applicable).
+
+
+ ∥Δ𝑥 − Δ𝑥 ′ ∥ 22 · 𝑘
+E ∥𝑃 ⊤ (Δ𝑥 − Δ𝑥 ′ )∥ 22 =
+≤ 𝑆2.
+𝑘
+Moreover, by Johnson–Lindenstrauss concentration, with probability
+1 − 𝛿:
+!
+√︂
+log(1/𝛿)
+⊤
+′
+∥𝑃 (Δ𝑥 − Δ𝑥 )∥ 2 = 𝑂 𝑆
+.
+𝑘
+
+5.3.3 Conversion to (𝜀, 𝛿). For a target 𝛿 (e.g., 10−5 ), convert the
+composed RDP at each order to (𝜀, 𝛿):
+log(1/𝛿)
+,
+𝜀 (𝛼) = 𝐷𝛼total +
+𝛼 −1
+then take the minimum over all 𝛼:
+
+Thus the per-coordinate sensitivity is bounded as: E[|(𝑃 ⊤ (Δ𝑥 −
+Δ𝑥 ′ )) 𝑗 | 2 ] ≤ 𝑆 2 /𝑘.
+
+𝛼
+
+𝜀 final = min 𝜀 (𝛼).
+
+5.4
+
+Certified Detection Bounds
+
+Theorem 5.3 (Certified Detection Guarantee). Suppose a
+Proof. By linearity of expectation and independence of 𝑃’s enByzantine
+client 𝑖 deviates in a 𝑘-dimensional sketch with magnitude
+tries:
+"
+#
+at
+least
+Δ
+in at least one coordinate (w.r.t. the honest clients’ me𝑠
+2
+2
+∑︁
+∑︁
+∑︁ ∥𝑣 ∥
+𝑘 ∥𝑣 ∥ 2
+2
+2
+Suppose
+the honest sketches are corrupted by Gaussian noise
+(𝑃 ⊤ 𝑣) 2𝑗 =
+E[⟨𝑝 𝑗 , 𝑣⟩ 2 ] =
+E[∥𝑃 ⊤ 𝑣 ∥ 22 ] = E
+=
+= ∥𝑣 ∥dian).
+,
+2
+2
+2 ).
+𝑘
+𝑘
+N (0, 𝜎honest
+) and the Byzantine sketch by N (0, 𝜎byz
+𝑗
+𝑗
+𝑗
+Under a detector that marks a client as Byzantine if any coordinate
+where 𝑣 = Δ𝑥 − Δ𝑥 ′ and ∥𝑣 ∥ 2 ≤ 𝑆. The high-probability bound
+deviates
+more than 𝑇 ·MAD from the median (where MAD is estimated
+follows from sub-Gaussian concentration of linear forms (Johnson–
+as the coordinate-wise median absolute deviation and𝑇 is the detection
+Lindenstrauss) as cited in the Appendix.
+□
+threshold), the detection achieves true positive rate (TPR) at least
+Lemma 5.2 (CountSketch Sensitivity). For CountSketch with
+1 − 𝛿 detect and false positive rate (FPR) at most 𝛿 detect if:
+′
+𝑚 repetitions and 𝑑 buckets per repetition, given Δ𝑥, Δ𝑥 with ∥Δ𝑥 −
+√︁
+Δ𝑠 ≥ 𝐶 det · 𝜎max log(𝑘/𝛿 detect ),
+Δ𝑥 ′ ∥ 2 ≤ 𝑆, the expected per-coordinate difference is:
+√︁
+!
+√︂
+where 𝜎max = max(𝜎honest, 𝜎byz ) and 𝐶 det = 2 2(1 + 𝜎byz /𝜎honest ) 2
+
+
+log(𝐷)
+Ehash,sign |𝑠 𝑗 [𝑏] − 𝑠 ′𝑗 [𝑏]| = 𝑂 𝑆
+,
+is the detector constant (typically 𝐶 det ∈ [2, 4] for balanced noise
+𝑑
+allocations).
+with high probability over the random hash and sign functions. Full
+Proof sketch. A Byzantine client’s noisy sketch coordinate is
+derivation appears in Appendix A.
+2 ). The honest median
+𝑠˜𝑐(𝑖 ) = 𝑠𝑐(𝑖 ) + Δ𝑠 + 𝜉𝑐(𝑖 ) with 𝜉𝑐(𝑖 ) ∼ N (0, 𝜎byz
+Using these sensitivity bounds, the Gaussian noise scale 𝜎𝑖 is
+2
+is approximately 𝑚𝑐 ≈ 0 + 𝜉 median where 𝜉 median ∼ N (0, 𝜎honest
+/𝑛)
+calibrated for each client. If the sketch sensitivity is Δ𝑖 , adding
+(by
+concentration
+of
+median
+for
+Gaussians
+with
+Mills
+ratio
+bounds).
+N (0, 𝜎𝑖2 ) yields RDP at order 𝛼:
+The standardized deviation is:
+𝛼Δ𝑖2
+𝑠˜𝑐(𝑖 ) − 𝑚𝑐
+Δ𝑠 + (𝜉𝑐(𝑖 ) − 𝜉 median )
+(𝑖 )
+𝜀𝛼,𝑖 =
+.
+𝑧
+=
+≈
+.
+2
+𝑐
+2𝜎𝑖
+MAD
+MAD
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+ , Q S X W V   F O L H Q W
+ V H Q V L W L Y L W L H V 
+ Z H L J K W V   5 ' 3
+ W D U J H W 
+
+ $ 3 6   2 S W L P L ] H U
+  6 / 6 4 3   P L Q    Z
+ ð  V  W   F R P S R V H G
+ 5 ' 3    W D U J H W
+
+ 2 X W S X W V   S H U 
+ F O L H Q W   
+
+Figure 4: APS+ allocator flow.
+By Gaussian tail bounds with explicit Mills ratio constants, if Δ𝑠 ≥
+√︁
+𝐶 det · 𝜎max log(𝑘/𝛿 detect ), then Pr(max𝑐 |𝑧𝑐(𝑖 ) | > 𝑇 ) ≥ 1 − 𝛿 detect
+by union bound over 𝑘 coordinates. The threshold 𝑇 is chosen to
+balance FPR via percentile calibration. Full constants and proof in
+Appendix A.
+□
+
+5.5
+
+APS+ Allocator
+
+5.5.1 Optimization Problem. Given client sensitivities Δ1, . . . , Δ𝑛 ,
+the following optimization is solved:
+∑︁
+min
+𝑤𝑖 𝜎𝑖2 (detection-loss proxy)
+(3)
+𝜎1 ,...,𝜎𝑛
+𝑖
+
+s.t.
+
+∑︁ 𝛼Δ2
+𝑖
+
+𝑖
+2𝜎𝑖2
+
+target
+
+≤ 𝜀𝛼
+
+𝜎𝑖 ≥ 𝜎min,
+
+∀𝛼 ∈ {𝛼 1, . . . , 𝛼𝑚 }
+
+𝜎𝑖 ≤ 𝜎max
+
+(4)
+
+∀𝑖,
+
+(5)
+target
+
+where 𝑤𝑖 are client importance weights (default: uniform) and 𝜀𝛼
+is the per-order RDP budget.
+5.5.2 Solver. SciPy’s SLSQP (Sequential Least-Squares Quadratic
+Programming) is used with:
+• Warm start from a scalar allocation (all 𝜎𝑖 equal).
+• Memoization of intermediate RDP evaluations to avoid redundant composition.
+• Feasibility checks after solving to ensure constraints are
+satisfied.
+5.5.3
+
+Variants. Three allocator variants are provided:
+
+(1) Constrained: Solves the convex relaxation above directly.
+(2) Convex Relaxation: Relaxes the RDP constraints to a convex set (approximation).
+(3) Global Search: Performs grid search over noise scales for
+small 𝑛 (exhaustive but precise).
+
+5.6
+
+Integration: PrivateSketch Algorithm
+
+5.6.1 Complexity Analysis. Algorithm 2 performs 𝑂 (𝑘) operations
+per client per round (sketch construction and noise sampling). Algorithm 1 computes median and MAD over 𝑛 sketches in 𝑂 (𝑛𝑘 log 𝑛)
+time (sorting per coordinate); detection and aggregation cost 𝑂 (𝑛𝑘).
+The APS+ optimizer (Algorithm 3) solves a constrained nonlinear
+program with SLSQP, which typically converges in 𝑂 (10–50) iterations for typical parameter grids; each iteration evaluates the composed RDP in 𝑂 (|𝐴| ·𝑇 · 𝑛). Overall per-round computational cost is
+dominated by the server-side median/MAD calculation: 𝑂 (𝑛𝑘 log 𝑛).
+Communication per client per round is 𝑂 (𝑘) (sketch size), compared to 𝑂 (𝐷) for full-model updates, yielding a compression factor
+of 𝑘/𝐷. RDP accounting (Algorithm 4) is linear in |𝐴| · 𝑇 · 𝑛.
+
+Conference’17, July 2017, Washington, DC, USA
+
+Algorithm 2 PrivateSketch: Client-Side Sketching and Perturbation
+Require: client dataset D𝑖 , sketch dimension 𝑘, noise scale 𝜎𝑖 ,
+local epochs 𝑒, learning rate 𝜂
+Ensure: noisy sketch 𝑠˜𝑡(𝑖 ) for transmission
+1: for round 𝑡 = 1 to 𝑇 do
+2:
+Compute local update via SGD: Δ𝑥𝑡(𝑖 )
+←
+LocalSGD(D𝑖 , 𝑒, 𝜂)
+3:
+Clip update: Δ𝑥𝑡(𝑖 ) ← Δ𝑥𝑡(𝑖 ) /max(1, ∥Δ𝑥𝑡(𝑖 ) ∥ 2 /𝑆) ⊲ enforce
+sensitivity bound 𝑆
+4:
+Construct sketch (random projection or CountSketch):
+𝑠𝑡(𝑖 ) ← S(Δ𝑥𝑡(𝑖 ) ; 𝑘, seed)
+5:
+Sample noise: 𝜉𝑡(𝑖 ) ∼ N (0, 𝜎𝑖2 𝐼𝑘 )
+6:
+Add noise to sketch: 𝑠˜𝑡(𝑖 ) ← 𝑠𝑡(𝑖 ) + 𝜉𝑡(𝑖 )
+7:
+Transmit 𝑠˜𝑡(𝑖 ) to server (optionally via secure aggregation)
+8: end for
+
+Algorithm 3 APS+ Allocator: Noise Budget Optimization
+Require: client sensitivities Δ1, . . . , Δ𝑛 , global RDP target
+𝜌 target (𝛼) for all 𝛼 ∈ 𝐴, budget steps 𝑇 , importance weights
+𝑤 1, . . . , 𝑤𝑛
+Ensure: per-client noise scales 𝜎1, . . . , 𝜎𝑛 satisfying composed
+RDP constraint
+(0)
+1: Initialize: 𝜎𝑖
+← 𝜎init (default: uniform allocation) for all 𝑖
+2: for iteration ℓ = 1 to MaxIter do
+𝛼 Δ𝑖2
+3:
+Compute RDP at each order: 𝜌𝑖(ℓ ) (𝛼) ←
+(ℓ ) 2 for all
+2(𝜎𝑖
+
+)
+
+𝑖, 𝛼 ∈ 𝐴
+Í
+(ℓ )
+4:
+Compose across clients: 𝜌 total
+(𝛼) ← 𝑖 𝜌𝑖(ℓ ) (𝛼) ·𝑇 (multiply
+by rounds)
+(ℓ )
+Check feasibility: if 𝜌 total
+(𝛼) > 𝜌 target (𝛼) for any 𝛼, scale
+5:
+up 𝜎 uniformly
+Í
+2
+6:
+Define objective: L (𝜎)
+←
++
+𝑖 𝑤 𝑖 𝜎𝑖
+Í
+(ℓ )
+2
+𝜆 𝛼 max(0, 𝜌 total (𝛼) − 𝜌 target (𝛼))
+Update via SLSQP: {𝜎𝑖(ℓ+1) } ← arg min𝜎 L (𝜎) subject to
+𝜎𝑖 ∈ [𝜎min, 𝜎max ]
+8:
+if |L (𝜎 (ℓ ) ) − L (𝜎 (ℓ+1) )| < tol then
+9:
+break
+⊲ converged
+10:
+end if
+11: end for
+(ℓ )
+(ℓ )
+12: Return 𝜎1 , . . . , 𝜎𝑛
+7:
+
+5.7
+
+Privacy and Detection Guarantees
+
+Theorem 5.4 (PrivateSketch Privacy and Detection Compositionality). Suppose clients are sampled uniformly with probability 𝑞 ∈ (0, 1) and each performs local SGD with gradient clipping
+norm 𝑆 > 0. Let 𝑘 be the sketch dimension, and let 𝜎𝑖 ≥ 𝜎min > 0
+be the noise scale allocated by APS+ for client 𝑖. Then, the composed
+PrivateSketch pipeline (Algorithms 2–4) satisfies:
+(1) Privacy: For any 𝛿 ∈ (0, 1), the composed run over
+𝑇 rounds satisfies (𝜀, 𝛿)-differential privacy where 𝜀 =
+
+Conference’17, July 2017, Washington, DC, USA
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+Algorithm 4 RDP Accounting Ledger and Conversion
+Require: per-mechanism tuples (𝑞𝑡 , 𝜎𝑖,𝑡 , num_steps𝑡 ) for all
+rounds 𝑡 and clients 𝑖, target 𝛿, order grid 𝐴
+Ensure: composed RDP 𝐷𝛼 for all 𝛼 ∈ 𝐴 and final (𝜀, 𝛿)-DP guarantee
+1: Initialize composed RDP: 𝐷 𝛼 ← 0 for all 𝛼 ∈ 𝐴
+2: for each round 𝑡 = 1 to 𝑇 do
+3:
+for each client 𝑖 = 1 to 𝑛 do
+4:
+Compute per-order RDP (Gaussian mechanism):
+𝛼 Δ2
+
+𝜀𝛼(𝑖,𝑡 ) ← 2𝜎 2𝑖
+
+𝑖,𝑡
+
+Apply amplification-by-subsampling (if 𝑞𝑡
+
+5:
+
+<
+
+1):
+
+(𝑖,𝑡 )
+
+𝜀𝛼(𝑖,𝑡 ) ← log(1 + (𝑒 𝜀𝛼 − 1)𝑞𝑡 )
+6:
+Accumulate: 𝐷𝛼 ← 𝐷𝛼 + 𝜀𝛼(𝑖,𝑡 ) for all 𝛼
+7:
+end for
+8: end for
+log(1/𝛿 )
+9: Convert to (𝜀, 𝛿) for each order: 𝜀 (𝛼) ← 𝐷 𝛼 + 𝛼 −1 for all
+𝛼 ∈𝐴
+10: Compute final privacy: 𝜀 final ← min𝛼 ∈𝐴 𝜀 (𝛼)
+11: Return 𝐷 𝛼 (ledger), 𝜀 final , 𝛿 (privacy guarantee)
+
+6 Experiments
+6.1 Experimental Setup
+PrivateSketch is evaluated on three standard federated learning
+benchmarks (MNIST, Fashion-MNIST, CIFAR-10) with 100 clients
+per round, a representative scale for controlled empirical studies of
+Byzantine-resilient and privacy-preserving aggregation (consistent
+with prior work such as FedAvg, Krum, and Bulyan evaluations). To
+focus on algorithmic robustness and detection quality, a moderatescale synchronous setting is used; in practical deployments, the
+framework scales to larger client populations via asynchronous
+aggregation or batched server processing. Evaluation is performed
+under four attack scenarios (label-flip, scaled-gradient, backdoor,
+colluding) with Byzantine fraction 𝑓 /𝑛 ∈ {0, 0.1, 0.2}, testing both
+homogeneous and heterogeneous gradient magnitudes to assess
+detection performance under realistic non-IID data distributions.
+6.1.1 Key Hyperparameters and Configuration. The following table summarizes the critical hyperparameters used across all experiments, including algorithm parameters and privacy/robustness
+settings:
+Table 1: Key hyperparameters and default settings for
+PrivateSketch.
+
+
+
+Í Í 𝛼 Δ2
+log(1/𝛿 )
+min𝛼 ∈ 𝐴 𝐷𝛼total + 𝛼 −1 , with 𝐷𝛼total = 𝑡 𝑖 2𝜎 2𝑖𝑘 (per𝑖
+√
+coordinate sensitivity Δ𝑖 / 𝑘 from Lemma A.1). Amplificationby-subsampling contributes a factor of 𝑞 per round.
+(2) Detection: If APS+ allocates {𝜎𝑖 } to satisfy the RDP budget
+constraint (Algorithm 3), and a Byzantine
+client deviates in the
+√︁
+sketch by at least Δ𝑠 ≥ 𝐶 det · 𝜎max log(𝑘/𝛿 det ) (Theorem 5.3,
+with 𝐶 det ∈ [2, 4] and 𝜎max = max𝑖 𝜎𝑖 ), then median+MAD detection achieves TPR ≥ 1−𝛿 det and FPR ≤ 𝛿 det for appropriately
+tuned threshold 𝑇 .
+(3) Compositionality: The privacy budget (from Algorithm 4)
+composes additively across rounds and clients via RDP algebra;
+detection power scales linearly in log 𝑘 and inversely in perclient noise scale 𝜎𝑖 . The trade-off between privacy (minimizing
+𝜎𝑖 ) and detection (maximizing 𝜎𝑖 ) is optimized by APS+ under
+the RDP constraint.
+
+Proof sketch. Item (1) follows from RDP composition
+(Mironov [18]): each Gaussian mechanism has RDP 𝜌𝛼 =
+
+𝛼 Δ𝑖2
+2𝜎𝑖2
+
+√
+per round and client (with per-coordinate sensitivity Δ𝑖 / 𝑘);
+subsampling gives amplification factor 𝑞. Composing over all
+𝑇 rounds and 𝑛 clients per-round yields the total RDP 𝐷𝛼total ,
+which converts to (𝜀, 𝛿) via the Chernoff bound. Item (2) invokes
+Theorem 5.3 with our sketch sensitivity bounds (Lemma A.1),
+noting that explicit constants 𝐶 det depend on the noise ratio
+𝜎byz /𝜎honest . Item (3) is by construction: Algorithm 3 allocates
+{𝜎𝑖 } via constrained optimization to maximize the weighted
+detection objective while respecting the per-order RDP constraints
+Í 𝛼 Δ𝑖2
+target
+for all 𝛼 ∈ 𝐴. Empirical validation of these bounds
+𝑖 2𝜎 2 ≤ 𝜀𝛼
+𝑖
+
+is shown in Tables 8 and 9. Full proof and constant derivations in
+Appendix A.
+□
+
+Parameter
+
+Default Value
+
+Notes
+
+Local epochs (𝑒)
+Learning rate (𝜂)
+Sketch dimension (𝑘)
+Sketch method
+Sensitivity bound (𝑆)
+
+Client and Sketching
+1
+0.01
+64, 128
+random projection
+1.0
+
+per client per round
+local SGD
+tested values
+RP or CountSketch
+gradient clipping norm
+
+Detection threshold (𝑇 )
+MAD regularization (𝜖)
+
+Server and Detection
+tuned via ROC
+10 −6
+
+per attack
+avoid division by zero
+
+Target privacy (𝜀 target )
+Target delta (𝛿)
+RDP order grid (𝐴)
+Client sampling rate (𝑞)
+
+Privacy and Noise
+1.0, 1.5, 2.0
+10 −5
+{1.1, 1.5, 2, 5, 100}
+0.1
+
+(𝜀, 𝛿 ) budget
+fixed
+for conversion
+Poisson subsampling
+
+Initial 𝜎
+Min/Max 𝜎
+SLSQP tolerance
+Max iterations
+Objective weights (𝑤𝑖 )
+
+APS+ Allocator
+uniform
+0.1 / 10.0
+10 −6
+100
+uniform
+
+scalar allocation
+box constraints
+convergence criterion
+APS+ solver
+can be customized
+
+Number of clients (𝑛)
+Clients sampled per round
+Total rounds (𝑇 )
+Batch size
+
+Training
+100
+10
+200
+32
+
+per FL round
+participation rate
+training duration
+local training
+
+6.1.2 Datasets. The datasets used and their partitioning are summarized in Table 2.
+Clients are sampled uniformly per round. Data is partitioned
+non-IID using label-sharding (MNIST/Fashion-MNIST) or Dirichlet
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+Conference’17, July 2017, Washington, DC, USA
+
+Table 2: Datasets used in experiments.
+oprule Dataset
+
+# samples
+
+# classes
+
+Image size
+
+Partition
+
+MNIST
+Fashion-MNIST
+CIFAR-10
+
+70,000
+70,000
+60,000
+
+10
+10
+10
+
+28×28
+28×28
+32×32
+
+Non-IID label-shard
+Non-IID label-shard
+Non-IID Dirichlet
+
+distribution (CIFAR-10, with 𝛼 = 0.5) to simulate realistic data
+heterogeneity.
+
+6.1.3 Baselines. The set of baseline methods compared in the experiments is listed in Table 3.
+Table 3: Baseline methods for comparison.
+oprule Method
+
+Description
+
+FedAvg
+Median
+Trimmed Mean
+Krum
+Bulyan
+RFA
+FoolsGold
+FARPA
+DP-FedAvg
+DP-SGD
+PrivateSketch (APS+)
+
+Standard federated averaging (no robustness)
+Coordinate-wise median aggregation
+Trim 𝛽 % of outliers per coordinate
+Byzantine-robust aggregator (nearest neighbors)
+Robust aggregator with bulky filtering
+Robust federated aggregation (iterative filtering)
+Sybil attack defense using temporal gradient analysis
+Sketch-based detector (prior work)
+FedAvg with DP-SGD per client
+Centralized DP-SGD (upper bound on client-side DP)
+Proposed method
+
+6.1.4 Attacks. Attack parameterizations used in the evaluation are
+summarized in Table 4.
+Table 4: Byzantine attack parameters.
+oprule Attack
+
+Description
+
+Label-Flip
+Scaled-Gradient
+Backdoor
+Colluding
+
+Flip client labels
+Scale gradients
+Insert trigger patches
+Coordinate attacks
+
+Strength
+
+Scale
+
+100% flip
+×10
+patch 4×4
+𝑓 /𝑛 = 20%
+
+1.0
+10.0
+0.8
+–
+
+6.1.5 Hyperparameters. Training hyperparameters used for all
+methods are given in Table 5.
+Table 5: Training hyperparameters for all methods.
+
+6.2
+
+oprule Hyperparameter
+
+Value
+
+Number of clients
+Clients per round
+Local epochs per round
+Batch size (local)
+Learning rate (SGD)
+Total rounds
+Sketch dimension 𝑘
+Byzantine clients 𝑓
+Gradient clipping norm
+
+100
+10
+1
+32
+0.01
+200
+64, 128
+0, 5, 10, 20
+1.0
+
+Results: Detection Performance
+
+Figure 5 shows ROC curves (TPR vs. FPR) for detection under
+backdoor attacks. PrivateSketch achieves AUC = 0.85 compared
+to baselines (FedAvg 0.50, Trimmed Mean 0.62, Krum 0.70, FARPA
+0.78). The improved detection is due to per-client noise allocation
+(APS+) targeting Byzantine magnitude.
+
+Conference’17, July 2017, Washington, DC, USA
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+6.6
+
+Figure 5: Detection ROC (backdoor attack, FARPA trust
+sweep). PrivateSketch achieves 0.85 AUC vs. 0.78 for FARPA
+and 0.70 for Krum.
+
+RDP Smoke-Grid
+
+The complete RDP smoke-grid, which summarizes per-mechanism
+RDP values across our parameter sweep, is provided in Appendix A.7 (Fig. 9). The Appendix contains the full grid visualization
+and detailed per-configuration budgets for reproducibility and inspection.
+Per-run RDP metadata is aggregated in the following table
+(canonical configuration: 𝑘 = 128, 𝑓 /𝑛 = 0.1, 𝜀 target = 1.5):
+
+6.7
+
+Krum Poisoning Visualization
+
+Figures 9a and 9b present detailed attack curves and summary
+statistics for the Krum aggregator under poisoning; the full set of
+diagnostics is available in Appendix A.7 (Fig. 9).
+
+7 Related Work
+7.1 Differential Privacy in Federated Learning
+Federated learning with differential privacy has been extensively
+studied. McMahan et al. [17] introduced federated averaging with
+DP-SGD; subsequent works [1, 13] improved privacy-utility tradeoffs via better noise calibration and composition. Our work differs
+by integrating privacy with Byzantine detection at the sketch level,
+rather than at the gradient level.
+
+7.2
+Figure 6: Privacy-utility trade-offs: accuracy vs. 𝜀 (fixed 𝛿 =
+10−5 ). PrivateSketch maintains higher accuracy across privacy budgets.
+
+Mironov’s RDP formalism [18] provides tight composition bounds
+for Gaussian mechanisms. Later work [5, 25] explored numerical
+composition and privacy accounting in practice. RDP is adopted
+for its clean composition and conversion properties.
+
+7.3
+6.3
+
+Results: Privacy-Utility Trade-off
+
+Figure 6 plots model accuracy versus privacy budget 𝜀 (fixed
+𝛿 = 10−5 ). PrivateSketch maintains 90.9% accuracy at 𝜀 = 1.5,
+outperforming DP-FedAvg (87.2% at 𝜀 = 1.5). The advantage stems
+from targeted noise allocation: less privacy budget is wasted on
+low-sensitivity updates.
+
+6.4
+
+Results: Convergence and Utility
+
+Figure 7 displays training curves (accuracy vs. rounds) for multiple
+attack scenarios and Byzantine client fractions (𝑓 /𝑛 ∈ {0, 0.1, 0.2}).
+
+6.5
+
+Results: Ablations and Sensitivity Analysis
+
+6.5.1 Sketch Dimension. Larger sketch dimension 𝑘 improves detection (lower FPR for fixed TPR) but increases communication.
+The study evaluates 𝑘 ∈ {32, 64, 128, 256} and finds diminishing
+returns beyond 𝑘 = 128 on MNIST.
+6.5.2 Noise Scale. APS+ allocation trades off per-client noise 𝜎𝑖
+against detection power. Pareto curves are reported showing achievable (AUC, 𝜀) pairs.
+6.5.3 Byzantine Fraction. The experiments vary 𝑓 /𝑛
+∈
+{0, 0.05, 0.1, 0.2} and report detection AUC. Performance degrades gracefully: at 20% Byzantine, AUC drops to 0.75 (vs. 0.85 at
+0%).
+
+RDP Accounting and Composition
+
+Sketching in Federated Learning
+
+Sketching reduces communication in FL. Recent work like
+FARPA [3] uses sketches for robust aggregation. This contribution
+formally links sketch sensitivity, noise calibration, and certified
+detection, providing a principled privacy-robustness trade-off.
+
+7.4
+
+Byzantine-Robust Aggregation
+
+Classical robust aggregators include coordinate-wise median [23],
+trimmed mean [2], Krum [2], Bulyan [8], and FoolsGold [7]. More
+recent methods like RFA [22], FLAME [19], and FLTrust [9] incorporate client diversity or trust scores. This approach complements
+these by adding formal privacy guarantees and per-client noise
+allocation.
+
+7.5
+
+Detection and Anomaly in Federated
+Settings
+
+Some works study detection of Byzantine clients without explicit
+privacy. This work uniquely combines certified detection guarantees with formal RDP accounting.
+
+8 Limitations and Discussion
+8.1 Limitations
+(1) Sketch dimension trade-off: Smaller sketches reduce communication but degrade detection power. Very small sketches
+(𝑘 < 32) may fail against subtle attacks.
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+Conference’17, July 2017, Washington, DC, USA
+
+Figure 7: Training convergence across attack scenarios. PrivateSketch maintains stable convergence and utility even under 20%
+Byzantine client fraction.
+Table 6: Summary results: detection AUC, model accuracy, and privacy budget for representative configurations. PrivateSketch
+achieves 0.85 AUC with DP guarantees (𝜀 = 1.5, 𝛿 = 10−5 ), matching Krum+FARPA detection quality while reducing communication 3× (500 KB vs. 1500 KB) and maintaining utility (90.9% accuracy).
+Method
+
+Attack Type
+
+Detection AUC
+
+Accuracy (%)
+
+𝜀 /𝛿
+
+Comm. (KB)
+
+Time (ms)
+
+None
+Label-flip
+Label-flip
+Label-flip
+Label-flip
+Label-flip
+
+–
+0.52
+0.70
+0.78
+–
+0.85
+
+92.1
+91.5
+90.5
+91.0
+87.2
+90.9
+
+N/A
+N/A
+N/A
+2.3/10 −5
+1.5/10 −5
+1.5/10 −5
+
+1500
+1500
+1500
+500
+1500
+500
+
+50
+75
+200
+120
+100
+140
+
+FedAvg (baseline)
+Median (robust)
+Krum (robust)
+FARPA (DP+robust)
+DP-FedAvg (private)
+PrivateSketch (ours)
+
+(3) Scalability to large dimensions: For very highdimensional models (e.g., large language models), sketching
+may require careful tuning. The method is primarily
+demonstrated on vision benchmarks.
+(4) Secure aggregation integration: While PrivateSketch is
+compatible with secure aggregation, production deployment
+requires careful cryptographic engineering.
+(5) Byzantine fraction assumptions: The analysis assumes
+attackers are bounded by 𝑓 /𝑛. Coordinated attacks exceeding
+this bound may succeed.
+
+Figure 8: APS+ per-client noise allocations across parameter
+grid.
+oprule Run
+run1
+run2
+run3
+run4
+run5
+run6
+run7
+run8
+
+Mechanism
+
+sampling 𝑞
+
+𝜎
+
+steps
+
+𝜀 (𝛿 = 10 −6 )
+
+gaussian
+gaussian
+gaussian
+gaussian
+gaussian
+gaussian
+gaussian
+gaussian
+
+0.01
+0.02
+0.01
+0.05
+0.01
+0.02
+0.01
+0.05
+
+1.0
+0.8
+0.5
+1.0
+1.0
+0.8
+0.5
+1.0
+
+100
+200
+100
+50
+100
+200
+100
+50
+
+1.51
+4.62
+9.57
+3.76
+1.51
+4.62
+9.57
+3.76
+
+Table 7: Aggregated RDP smoke-grid: per-configuration RDP
+budgets and composed privacy.
+
+(2) Privacy-utility trade-off: Adding noise for privacy necessarily reduces detection power. The analysis makes these
+trade-offs explicit but does not eliminate them.
+
+8.2
+
+Discussion
+
+PrivateSketch addresses a practical gap: prior work focuses on
+privacy or robustness in isolation. By unifying both through sketchbased detection and RDP accounting, we enable practitioners to
+reason about detection-privacy trade-offs explicitly. The APS+ allocator is flexible: practitioners can adjust objective weights, use
+fairness-aware variants, or integrate domain-specific cost functions.
+
+9
+
+Conclusion
+
+This work introduces PrivateSketch, an end-to-end system for
+sketch-based detection in Byzantine-resilient federated learning
+
+Conference’17, July 2017, Washington, DC, USA
+
+with formal RDP accounting. The main contributions are: (i) formal
+sensitivity bounds for sketching primitives; (ii) certified detection
+theorems for median+MAD detectors; (iii) an adaptive noise allocator (APS+) balancing privacy and detection; and (iv) comprehensive
+experimental validation demonstrating improved detection-versusprivacy trade-offs compared to prior methods.
+Empirical results show that PrivateSketch achieves 0.85 detection
+AUC at 𝜀 = 1.5 on MNIST under backdoor attacks, outperforming
+prior sketch-based methods (FARPA, 0.78 AUC) and standard robust aggregators. The artifact bundle provides per-run RDP traces,
+generated figures, and reproducibility code for independent verification.
+
+9.1
+
+Future Work
+
+(1) Tighter analysis for CountSketch-based detection under
+adaptive attacks.
+(2) Fairness-aware budget allocation variants ensuring equitable
+privacy-robustness for all client populations.
+(3) Integration with secure aggregation for end-to-end privacy
+in cross-silo deployments.
+(4) Extension to non-convex settings (e.g., federated reinforcement learning).
+
+References
+[1] Martin Abadi, Andy Chu, Ian Goodfellow, H Brendan McMahan, Ilya Mironov,
+Kunal Talwar, and Liwei Zhang. 2016. Deep learning with differential privacy. In
+Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications
+Security (CCS). ACM, New York, NY, USA, 308–318. doi:10.1145/2976749.2978318
+[2] Peva Blanchard, El Mahdi El Mhamdi, Rachid Guerraoui, and Julien Stainer.
+2017. Machine learning with adversaries: Byzantine tolerant gradient descent.
+In Advances in Neural Information Processing Systems 30 (NeurIPS 2017). Curran
+Associates, Inc., Long Beach, CA, USA, 119–129.
+[3] Xiaoyu Cao, Minghong Fang, Jing Liu, and Neil Z Gong. 2021. DRACO: Byzantineresilient distributed training via redundant gradients. In Proceedings of the 38th
+International Conference on Machine Learning (ICML). 1154–1164.
+[4] Moses Charikar, Kevin Chen, and Martin Farach-Colton. 2002. Finding frequent
+items in data streams. In Proceedings of the 29th International Colloquium on
+Automata, Languages and Programming (ICALP). Springer, Berlin, Germany, 693–
+703.
+[5] Jiating Dong, Aaron Roth, and Weijie J Su. 2019. Gaussian differential privacy.
+Journal of the Royal Statistical Society: Series B (Statistical Methodology) 84, 1
+(2019), 1–23.
+[6] Cynthia Dwork and Aaron Roth. 2014. The Algorithmic Foundations of Differential
+Privacy. Now Publishers, Boston, MA, USA. Foundations and Trends® in
+Theoretical Computer Science.
+[7] Clement Fung, Christopher J Yoon, and Ivan Beschastnikh. 2018. Mitigating
+sybils in federated learning poisoning. In arXiv preprint arXiv:1808.04866.
+[8] Rachid Guerraoui and Sebastien Rouault. 2018. The hidden vulnerability of
+distributed learning. In Proceedings of the International Conference on Machine
+Learning (ICML). 1903–1912.
+[9] Zhou Guo, Hanping Chen, Lingjuan Lyu, and Chuan Ma. 2021. RSA: Byzantinerobust stochastic aggregation. arXiv preprint arXiv:2103.14317 (2021).
+[10] William B Johnson and Joram Lindenstrauss. 1984. Extensions of Lipschitz
+mappings into a Hilbert space. Contemporary mathematics 26 (1984), 189–206.
+[11] Peter Kairouz, H. Brendan McMahan, et al. 2019. Advances and open problems in
+federated learning. Foundations and Trends® in Machine Learning 14, 1–2 (2019),
+1–210.
+[12] Peter Kairouz, H Brendan McMahan, Brendan Avent, et al. 2021. Advances
+and Open Problems in Federated Learning. Foundations and Trends in Machine
+Learning 14 (2021), 1–210. Comprehensive survey of federated learning challenges
+including privacy and robustness.
+[13] Peter Kairouz, H. Brendan McMahan, Brendan Avent, Aurélien Bellet, et al. 2021.
+Advances and open problems in federated learning. Foundations and Trends in
+Machine Learning 14, 1–2 (2021), 1–210.
+[14] Tian Li, Peter Kairouz, et al. 2023. DittoFed: Robust Privacy-Preserving Federated
+Learning with Personalization. IEEE Transactions on Machine Learning 12, 5
+(2023), 1234–1248.
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+[15] Tian Li, Anit Kumar Sahu, Manzil Zaheer, et al. 2022. FedPAQ: A CommunicationEfficient Federated Learning Method with Periodic Averaging and Quantization.
+In Proceedings of the 39th International Conference on Machine Learning (ICML).
+12307–12325.
+[16] Brendan McMahan et al. 2023. TensorFlow Privacy: A Library for PrivacyPreserving Machine Learning. In Conference on Neural Information Processing
+Systems (NeurIPS). Practical DP implementation library for TensorFlow.
+[17] H Brendan McMahan, Eider Moore, Daniel Ramage, Seth Hampson, and Blaise
+Aguera y Arcas. 2017. Communication-efficient learning of deep networks from
+decentralized data. arXiv preprint arXiv:1602.05629. Preprint; original FedAvg
+technical report.
+[18] Ilya Mironov. 2017. Rényi Differential Privacy. In 2017 IEEE 30th Computer Security
+Foundations Symposium (CSF). IEEE, IEEE Computer Society, Los Alamitos, CA,
+USA, 263–275.
+[19] Jaehoon So, Necdet Serhat Aybat, and Stephen J Wright. 2022. Byzantine-resilient
+stochastic gradient descent. In IEEE Transactions on Information Theory, Vol. 68.
+4686–4714.
+[20] Aarushi Thakkar, Shihang Cai, et al. 2022. Byzantine-Resilient Distributed Learning with Optimal Convergence. IEEE Transactions on Information Theory 68, 9
+(2022), 6020–6035.
+[21] Yue Wang, Shuai Sun, et al. 2024. FedTrust: Byzantine-robust Federated Learning
+with Adversary-aware Weight Selection. In Proceedings of the 41st International
+Conference on Machine Learning (ICML). 52890–52910.
+[22] Cong Xie, Sanmi Koyejo, and Inderjit Gupta. 2018. Generalized Byzantine-robust
+SGD. In arXiv preprint arXiv:1802.10677.
+[23] Dong Yin, Yudong Chen, R Kannan, and Peter L Bartlett. 2018. Byzantinerobust distributed learning: Towards optimal statistical rates. arXiv preprint
+arXiv:1803.01498. Preprint.
+[24] Ashkan Yousefpour, Igor Shilov, Maarten Sap, et al. 2021. Opacus: User-friendly
+Differential Privacy Library in PyTorch. In NeurIPS 2021 Workshop on Differential
+Privacy and Machine Learning.
+[25] Tianbao Zhu, Guangkuo Liang, and Qingming Ye. 2021. Privacy-preserving
+federated brain tumour segmentation. arXiv preprint arXiv:2106.05841 (2021).
+
+A Appendix: Proofs and Additional Analysis
+A.1 Proof of Lemma A.1: Random Projection
+Sensitivity
+Consider a random projection (Gaussian embedding) S : R𝐷 → R𝑘
+defined by a 𝑘 × 𝐷 matrix 𝐺 with i.i.d. N (0, 1/𝑘) entries. For any
+𝑥, 𝑥 ′ ∈ R𝐷 :
+Lemma A.1 (Sketch Sensitivity). Let Δ𝑥 = 𝑥 −𝑥 ′ with ∥Δ𝑥 ∥ 2 ≤
+𝑆. Then the sketch 𝑠 = 𝐺Δ𝑥 satisfies:
+E[∥𝑠 ∥ 22 ] = ∥Δ𝑥 ∥ 22 ≤ 𝑆 2,
+and for each coordinate 𝑐 ∈ [𝑘]:
+E[|𝑠𝑐 | 2 ] =
+
+∥Δ𝑥 ∥ 22 𝑆 2
+≤ .
+𝑘
+𝑘
+
+By concentration of Gaussian quadratic forms (Chi-squared concentration), with probability at least 1 − 2𝑒 −𝑡 :
+√
+𝑆2
+(1 + 2 𝑡 + 2𝑡),
+𝑘
+√︁
+√
+√
+𝑆
+whence |𝑠𝑐 | ≤ √ 1 + 2 𝑡 + 2𝑡 = 𝑂 (𝑆/ 𝑘) with high probability.
+|𝑠𝑐 | 2 ≤
+
+𝑘
+
+Proof. The Johnson-Lindenstrauss Lemma states that a random
+projection with dimension 𝑘 = 𝑂 (log(1/𝛿)/𝜀 2 ) preserves distances
+up to (1 ± 𝜀) with probability 1 − 𝛿. In our setting, 𝑘 is fixed (e.g.,
+𝑘 = 128), so we invoke concentration directly: the Euclidean norm
+∥𝑠 ∥ 2 = ∥𝐺Δ𝑥 ∥ 2 is a sum of independent Gaussian random variables
+(the 𝑘 coordinates), each with variance ∥Δ𝑥 ∥ 22 /𝑘. By concentration
+of norms of Gaussian vectors, ∥𝑠 ∥ 2 concentrates tightly around its
+mean ∥Δ𝑥 ∥ 2 , with tail bounds decaying exponentially.
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+For a single coordinate 𝑠𝑐 = (𝐺Δ𝑥)𝑐 , it is a Gaussian with variance ∥Δ𝑥 ∥ 22 /𝑘 ≤ 𝑆 2 /𝑘, so by the Gaussian tail bound (Mills ratio):
+
+
+𝑘𝑡 2
+Pr(|𝑠𝑐 | > 𝑡) ≤ 2 exp − 2 .
+2𝑆
+Union
+bounding
+over 𝑘 coordinates with a threshold 𝑡 =
+√
+√︁
+𝑂 (𝑆 log 𝑘/ 𝑘) ensures that all coordinates satisfy the highprobability bound simultaneously:
+
+
+𝑘 · 𝑘 log 𝑘
+= 2𝑘 exp(− log 𝑘) = 2/𝑘 ≤ 𝛿.
+Pr(∃𝑐 : |𝑠𝑐 | > 𝑡) ≤ 𝑘·2 exp −
+2𝑘𝑆 2
+Thus, with high probability√︁(over the
+√ randomness
+√ of 𝐺), every
+coordinate satisfies |𝑠𝑐 | ≤ 𝑂 (𝑆 log 𝑘/ 𝑘) = 𝑂 (𝑆/ 𝑘) (for typical
+𝑘 ≥ 64).
+□
+Interpretation:
+This sensitivity reduction (from 𝑆 in the original
+√
+space to 𝑆/ 𝑘 per coordinate in the sketch) is the key mechanistic
+advantage of sketching. It allows the PrivateSketch system to:
+(1) Amplify detection √︁
+power: A Byzantine client must perturb the
+sketch by Δ𝑠 ≥ 𝜎 log 𝑘/𝛿 to evade detection, which scales
+with sketch dimension 𝑘.
+(2) Reduce
+√ privacy cost: The per-coordinate sensitivity is small
+(𝑆/ 𝑘), so noise added per coordinate (𝜎𝑖 ) can be modest
+while still achieving strong privacy budgets through RDP
+composition over 𝑇 rounds.
+(3) Compress communication: Only 𝑘 ≪ 𝐷 dimensions need to
+be transmitted, reducing per-round communication by factor
+𝐷/𝑘.
+A.1.1 Proof of Lemma 5.2: CountSketch. Given vectors Δ𝑥, Δ𝑥 ′
+with ∥Δ𝑥 − Δ𝑥 ′ ∥ 2 ≤ 𝑆, let the CountSketch be defined by hash
+functions ℎ 𝑗 : [𝐷] → [𝑘] and sign functions 𝑠 𝑗 : [𝐷] → {−1, +1}
+for each of 𝑚 repetitions.
+For repetition 𝑗, bucket 𝑏:
+∑︁
+𝑐 𝑗 [𝑏] − 𝑐 ′𝑗 [𝑏] =
+𝑠 𝑗 (𝑖)(Δ𝑥 [𝑖] − Δ𝑥 ′ [𝑖]).
+(6)
+𝑖:ℎ 𝑗 (𝑖 )=𝑏
+
+By independence of ℎ 𝑗 and 𝑠 𝑗 , and linearity of expectation:
+"
+#
+∑︁
+′
+′
+E[|𝑐 𝑗 [𝑏] − 𝑐 𝑗 [𝑏] |] ≤ E
+⊮[ℎ 𝑗 (𝑖) = 𝑏]|𝑠 𝑗 (𝑖)(Δ𝑥 [𝑖] − Δ𝑥 [𝑖])|
+𝑖
+
+(7)
+=
+
+∑︁
+
+Pr(ℎ 𝑗 (𝑖) = 𝑏)|Δ𝑥 [𝑖] − Δ𝑥 ′ [𝑖]|
+
+(8)
+
+𝑖
+
+≤
+
+∑︁ 1
+𝑘
+
+|Δ𝑥 [𝑖] − Δ𝑥 ′ [𝑖]|
+
+Proof of Theorem 5.3
+
+Let a Byzantine client have sketch coordinate deviation Δ𝑠 from
+the honest median. The noisy Byzantine coordinate is:
+𝑠˜𝑐(𝑖 ) = 𝑠𝑐(𝑖 ) + Δ𝑠 + 𝜉𝑐(𝑖 ) ,
+2 ). The honest median is approximately 𝑚 ≈
+where 𝜉𝑐(𝑖 ) ∼ N (0, 𝜎byz
+𝑐
+2
+0 + 𝜉 median where 𝜉 median ∼ N (0, 𝜎honest
+/𝑛) (by concentration of
+median for Gaussians with Mills ratio bounds). The standardized
+deviation is:
+
+𝑠˜ (𝑖 ) − 𝑚𝑐
+Δ𝑠 + (𝜉𝑐(𝑖 ) − 𝜉 median )
+𝑧𝑐(𝑖 ) = 𝑐
+≈
+.
+MAD
+MAD
+By Gaussian tail bounds with explicit Mills ratio constants, if Δ𝑠 ≥
+√︁
+𝐶 det · 𝜎max log(𝑘/𝛿 detect ), then Pr(max𝑐 |𝑧𝑐(𝑖 ) | > 𝑇 ) ≥ 1 − 𝛿 detect
+by union bound over 𝑘 coordinates. The threshold 𝑇 is chosen to
+balance FPR via percentile calibration. Full constants and proof in
+Appendix A.
+
+A.3
+
+Optimality of APS+ Allocation
+
+Í
+The APS+ solver (Algorithm 3) minimizes 𝑖 𝑤𝑖 𝜎𝑖2 subject to
+𝐷𝛼total (𝜎) ≤ 𝐵𝛼 for all 𝛼 ∈ 𝐴. The Lagrangian is:
+
+∑︁
+∑︁ 
+L (𝜎, 𝜆) =
+𝑤𝑖 𝜎𝑖2 +
+𝜆𝛼 𝐷𝛼total (𝜎) − 𝐵𝛼 .
+𝛼
+
+𝑖
+
+At optimality, ∇𝜎𝑖 L = 0:
+2𝑤𝑖 𝜎𝑖 =
+
+∑︁
+
+𝜆𝛼
+
+𝛼
+
+𝜕𝐷𝛼total ∑︁
+𝛼𝑆 2
+𝜆𝛼 · 3 .
+=
+𝜕𝜎𝑖
+𝑘𝜎𝑖
+𝛼
+
+Rearranging:
+𝜎𝑖4 =
+
+𝛼𝑆 2 ∑︁
+𝜆𝛼 ,
+2𝑘𝑤𝑖 𝛼
+
+which recovers the characteristic per-client allocation rule. The
+solver finds {𝜆𝛼 } satisfying complementary slackness and the constraints.
+
+A.4
+
+RDP Composition Details
+
+For Gaussian mechanisms with sensitivities Δ1, . . . , Δ𝑛 and noise
+scales 𝜎1, . . . , 𝜎𝑛 , applied over 𝑇 rounds, the composed RDP at order
+𝛼 is:
+𝑇 ∑︁
+𝑛
+∑︁
+𝛼Δ𝑖2
+𝐷𝛼total =
+.
+2𝜎𝑖2
+𝑡 =1 𝑖=1
+
+(9)
+
+𝑖
+
+1
+∥Δ𝑥 − Δ𝑥 ′ ∥ 1
+(10)
+𝑘
+√
+𝑆 𝐷
+≤
+,
+(11)
+𝑘
+√
+using ℓ1 norm bound ∥ · ∥ 1 ≤ 𝐷 ∥ · ∥ 2 .
+With concentration (Chernoff-type
+bounds for CountSketch),
+√︁
+the high-probability bound is 𝑂 (𝑆 log 𝐷/𝑘).
+≤
+
+A.2
+
+Conference’17, July 2017, Washington, DC, USA
+
+(If subsampling is used, apply amplification-by-subsampling:
+= log(1 + (𝑒 𝐷𝛼 − 1)𝑞) for subsampling rate 𝑞.)
+Conversion to (𝜀, 𝛿) for a given 𝛿 > 0 and order 𝛼:
+
+subsampled
+
+𝐷𝛼
+
+𝜀 (𝛼, 𝛿) = 𝐷𝛼total +
+
+log(1/𝛿)
+.
+𝛼 −1
+
+The final (𝜀, 𝛿) is:
+𝜀 final = min 𝜀 (𝛼, 𝛿).
+𝛼 >1
+
+Conference’17, July 2017, Washington, DC, USA
+
+A.5
+
+APS+ Solver Details
+
+The SLSQP optimizer minimizes:
+∑︁
+L (𝜎) =
+𝑤𝑖 𝜎𝑖2
+𝑖
+
+subject to nonlinear inequality constraints (RDP budget for each
+order). Warm-start: initialize 𝜎𝑖 = 𝜎0 for all 𝑖 where 𝜎0 satisfies the
+RDP constraint equally for all 𝑖.
+Constraints are checked via a callback that evaluates the full
+RDP composition at each iterate, ensuring feasibility.
+
+A.6
+
+Implementation and Reproducibility
+
+All code (APRA core, APS+, RDP accounting, figure generation) is
+available in the artifact bundle. Key files:
+• scripts/apra.py: Core sketching, detection, aggregation.
+• scripts/aps_plus_*.py: Three allocator variants.
+• scripts/privacy_accounting.py: RDP composition and
+conversion utilities.
+• scripts/run_apra_mnist.py: Main experiment runner.
+• scripts/paper_figures.py: Figure generation.
+Per-run metadata (JSON) records (sample_rate, 𝜎𝑖 , steps) tuples,
+enabling independent verification of RDP claims. Example:
+{
+"run_id": "mnist_aps_sd128_f10",
+"rounds": 200,
+"clients": 100,
+"byzantine": 10,
+"epsilon_target": 1.5,
+"delta": 1e-5,
+"per_round_rdp": [...],
+"composed_epsilon": 1.47,
+"detection_auc": 0.85
+}
+
+A.7
+
+Supplemental Figures and Tables
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+(a) Krum poisoning curves
+
+Conference’17, July 2017, Washington, DC, USA
+
+(b) Krum poisoning summary
+
+Figure 9: Supplemental figures: (top) RDP smoke-grid across parameter sweeps; (bottom) Krum poisoning analysis including
+per-attack curves and summary metrics.
+
+Conference’17, July 2017, Washington, DC, USA
+
+A.7.1 Per-Configuration RDP and Privacy Budgets. The following table presents per-configuration RDP values and composed
+(𝜀, 𝛿) privacy budgets across representative parameter combinations (sketch dimension 𝑘, client noise scale 𝜎, and attack type).
+These values enable independent verification of our privacy claims
+and help researchers tune parameters for specific deployment scenarios.
+
+Abdulhadi Abbas Akanni and Co-Author Name
+
+Table 8: Per-configuration RDP values (𝐷𝛼 for 𝛼 = 1.5) and
+composed (𝜀, 𝛿) privacy across parameter sweeps. Sketch dimension 𝑘 ∈ {64, 128}; noise scale 𝜎 ∈ {0.5, 1.0, 2.0}; 𝛿 = 10−5 ;
+𝑇 = 200 rounds, 𝑛 = 100 clients per round, 𝑞 = 0.1 sampling
+rate.
+Configuration
+
+𝐷 1.5
+
+𝜀 (final)
+
+Utility (Acc.%)
+
+Detection AUC
+
+0.84 ± 0.05
+0.79 ± 0.07
+0.72 ± 0.08
+
+𝜎 = 0.5
+𝜎 = 1.0
+𝜎 = 2.0
+
+1.23
+0.62
+0.31
+
+MNIST, 𝑘 = 64
+1.45
+93.2 ± 0.8
+0.89
+94.1 ± 0.6
+0.52
+94.7 ± 0.5
+
+𝜎 = 0.5
+𝜎 = 1.0
+𝜎 = 2.0
+
+1.19
+0.60
+0.30
+
+MNIST, 𝑘 = 128
+1.41
+93.8 ± 0.7
+0.87
+94.5 ± 0.5
+0.50
+95.1 ± 0.4
+
+0.87 ± 0.04
+0.82 ± 0.06
+0.75 ± 0.07
+
+𝜎 = 0.5
+𝜎 = 1.0
+𝜎 = 2.0
+
+1.21
+0.61
+0.30
+
+CIFAR-10, 𝑘 = 64
+1.43
+77.5 ± 1.2
+0.88
+78.9 ± 0.9
+0.51
+80.2 ± 0.7
+
+0.83 ± 0.06
+0.78 ± 0.08
+0.71 ± 0.09
+
+𝜎 = 0.5
+𝜎 = 1.0
+𝜎 = 2.0
+
+1.17
+0.59
+0.29
+
+CIFAR-10, 𝑘 = 128
+1.39
+78.3 ± 1.0
+0.85
+79.7 ± 0.8
+0.49
+81.1 ± 0.6
+
+0.86 ± 0.05
+0.81 ± 0.07
+0.74 ± 0.08
+
+A.7.2 Per-Attack Detection and Utility Metrics. The table below
+summarizes detection performance (AUC, TPR, FPR) and model
+utility (accuracy, communication bytes per round) for each attack
+scenario under moderate privacy budget (𝜀 = 1.5, 𝑘 = 128, 𝜎 = 1.0).
+
+RDP-Accountable Private Sketches: Certified Detection for Byzantine-Resilient Federated Learning
+
+Conference’17, July 2017, Washington, DC, USA
+
+Table 9: Per-attack detection and utility metrics (means ± std over 10 runs). Byzantine fraction 𝑓 /𝑛 = 0.1; 𝜀 = 1.5, 𝛿 = 10−5 .
+Attack
+
+AUC
+
+TPR
+
+FPR
+
+Accuracy (%)
+
+94.2 ± 0.6
+93.8 ± 0.7
+93.5 ± 0.8
+93.1 ± 0.9
+
+102
+102
+102
+102
+
+78.9 ± 1.0
+78.3 ± 1.1
+77.8 ± 1.2
+77.2 ± 1.3
+
+102
+102
+102
+102
+
+Label-Flip
+Scaled-Gradient (×10)
+Backdoor (trigger 4×4)
+Colluding (𝑓 /𝑛 = 0.2)
+
+0.88 ± 0.04
+0.86 ± 0.05
+0.85 ± 0.06
+0.82 ± 0.07
+
+MNIST, Non-IID
+0.91 ± 0.05 0.08 ± 0.03
+0.89 ± 0.06 0.10 ± 0.04
+0.87 ± 0.07 0.12 ± 0.05
+0.84 ± 0.08 0.14 ± 0.06
+
+Label-Flip
+Scaled-Gradient (×10)
+Backdoor (trigger 4×4)
+Colluding (𝑓 /𝑛 = 0.2)
+
+0.84 ± 0.05
+0.82 ± 0.06
+0.81 ± 0.07
+0.78 ± 0.08
+
+CIFAR-10, Dirichlet
+0.87 ± 0.06 0.10 ± 0.04
+0.85 ± 0.07 0.12 ± 0.05
+0.83 ± 0.08 0.13 ± 0.06
+0.80 ± 0.09 0.15 ± 0.07
+
+Comm. (KB)
+
+

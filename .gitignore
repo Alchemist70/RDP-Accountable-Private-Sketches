@@ -1,0 +1,229 @@
+# -----------------------------
+# Top-level .gitignore for FL_Improvements_Research
+# Purpose: keep repository focused for recruiters/admissions; ignore
+# large run outputs, local environments, submission/compiled LaTeX files,
+# and other unimportant artifacts that will be stored or pushed elsewhere.
+# -----------------------------
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+pip-log.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+.venv
+
+# IDE / editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+compile.log
+build.log
+direct_runner_run.log
+
+# Large run outputs / results directories (experiment artifacts)
+apra_mnist_run/
+apra_mnist_runs_*/
+apra_smoke_test/
+apra_test_debug/
+rdp_smoke_outputs*/
+results/
+paper_figures*/
+sd*/
+
+# Binary / compiled files
+ijit_bin/
+*.so
+*.dll
+*.exe
+*.lib
+
+# Dataset and large data artifacts
+*.csv
+*.h5
+*.npz
+*.ckpt
+*.pth
+*.gz
+*.tar
+*.zip
+proctor* 
+
+# Submission folders and LaTeX / PDF outputs (you'll push them separately)
+acm_tops_files/
+submission_package/
+submission_package_*/
+submission_package.zip
+submission_package_acm/
+paper_acm_draft.*
+paper_*.tex
+*.tex
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.pdf
+*.toc
+*.lot
+*.lof
+latex*.log
+pdflatex*.log
+texput.log
+
+# Misc generated / exported files
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.svg
+*.eps
+
+# Keep these workspace files local (sensitive or not needed in recruiter view)
+venv/
+
+# Allowlist: files likely useful to recruiters/admissions (do NOT ignore)
+# - README.txt, README_REPRODUCE.md, environment.yml, requirements.txt,
+# - core scripts (.py) in project root, LICENSE, select docs (MDs), notebooks
+
+# -----------------------------
+# Unnecessary Markdown files (drafts, reports, summaries, notes)
+# Add or adjust patterns below if you want to keep specific files.
+# -----------------------------
+*_DRAFT.md
+*_DRAFT_*.md
+*draft*.md
+*_REPORT.md
+*_SUMMARY.md
+*_CHECKLIST.md
+*_MANIFEST.md
+*notes.md
+*note.md
+*scratch.md
+*_OLD.md
+*_backup.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+venv\
+
+# IDE/Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter
+.ipynb_checkpoints
+
+# Data / outputs
+rdp_smoke_outputs/
+paper_figures/
+archived_test_outputs/
+*.npz
+*.h5
+
+# Logs
+*.log
+test_agg_output.txt
+
+# OS
+Thumbs.db
+Desktop.ini
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual envs
+.env
+.venv
+env/
+venv/
+.tfpriv/
+
+# Conda envs
+/conda-env.yml
+/.conda/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache
+.pytest_cache/
+.cache/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Large experiment outputs (ignore by default; keep if you want to check into git)
+apra_mnist_runs_full/
+apra_mnist_runs_short/
+apra_mnist_results/
+apra_orchestrator.ipynb
+
+# RDP smoke outputs (regenerateable)
+rdp_smoke_outputs/
+
+# Figures and generated artifacts (optional - kept in repo if desired)
+# paper_figures/
+
+# Logs
+*.log
+
+# Secrets
+credentials.json
+
+# Python packaging
+pip-wheel-metadata/
+
+*.md

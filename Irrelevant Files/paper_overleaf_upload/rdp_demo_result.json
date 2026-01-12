@@ -1,0 +1,11 @@
+{
+  "eps": 4.621274998251787,
+  "delta": 1e-06,
+  "optimal_order": 4.5,
+  "record": {
+    "mechanism": "gaussian",
+    "sampling_rate": 0.02,
+    "sigma": 0.8,
+    "steps": 200
+  }
+}

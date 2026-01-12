@@ -1,0 +1,53 @@
+{
+  "count": 4,
+  "eps_min": 1.512668916260423,
+  "eps_max": 9.565782081471111,
+  "eps_mean": 4.864390594103098,
+  "eps_median": 4.189555689340428,
+  "entries": [
+    {
+      "record": {
+        "mechanism": "gaussian",
+        "sampling_rate": 0.01,
+        "sigma": 1.0,
+        "steps": 100
+      },
+      "target_delta": 1e-06,
+      "epsilon": 1.512668916260423,
+      "optimal_order": 9.0
+    },
+    {
+      "record": {
+        "mechanism": "gaussian",
+        "sampling_rate": 0.02,
+        "sigma": 0.8,
+        "steps": 200
+      },
+      "target_delta": 1e-06,
+      "epsilon": 4.621274998251787,
+      "optimal_order": 4.5
+    },
+    {
+      "record": {
+        "mechanism": "gaussian",
+        "sampling_rate": 0.01,
+        "sigma": 0.5,
+        "steps": 100
+      },
+      "target_delta": 1e-06,
+      "epsilon": 9.565782081471111,
+      "optimal_order": 2.5
+    },
+    {
+      "record": {
+        "mechanism": "gaussian",
+        "sampling_rate": 0.05,
+        "sigma": 1.0,
+        "steps": 50
+      },
+      "target_delta": 1e-06,
+      "epsilon": 3.7578363804290684,
+      "optimal_order": 5.0
+    }
+  ]
+}

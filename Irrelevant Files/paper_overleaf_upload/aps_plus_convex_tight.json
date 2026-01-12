@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "final_total_epsilon": 5.0000338184297,
+  "alloc": [
+    {
+      "id": "c0",
+      "importance": 1.0,
+      "sigma": 0.7738846867797128
+    },
+    {
+      "id": "c1",
+      "importance": 0.8,
+      "sigma": 0.7877027361853102
+    },
+    {
+      "id": "c2",
+      "importance": 1.5,
+      "sigma": 0.750825011695239
+    },
+    {
+      "id": "c3",
+      "importance": 0.5,
+      "sigma": 0.8220533775985929
+    },
+    {
+      "id": "c4",
+      "importance": 2.0,
+      "sigma": 0.7372863818130334
+    },
+    {
+      "id": "c5",
+      "importance": 1.2,
+      "sigma": 0.7628543839411402
+    },
+    {
+      "id": "c6",
+      "importance": 0.9,
+      "sigma": 0.7793544073506055
+    },
+    {
+      "id": "c7",
+      "importance": 0.7,
+      "sigma": 0.7982513531543878
+    },
+    {
+      "id": "c8",
+      "importance": 1.8,
+      "sigma": 0.74105920267329
+    },
+    {
+      "id": "c9",
+      "importance": 0.6,
+      "sigma": 0.8081363119765166
+    }
+  ]
+}
